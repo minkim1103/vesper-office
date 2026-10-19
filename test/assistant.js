@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import { once } from 'node:events';
 import handler from '../src/handler.js';
-import { scheduleRequest } from '../public/assistant.js';
 import { config } from '../src/config.js';
 import { checkPassword, isAuthed, issueCookie } from '../src/auth.js';
 import { handleMcp } from '../src/mcp.js';
@@ -21,14 +20,6 @@ for (const file of ['../public/index.html', '../public/app.js']) {
   const source = fs.readFileSync(new URL(file, import.meta.url), 'utf8');
   for (const [, key] of source.matchAll(/data-i18n(?:-placeholder|-aria-label)?="([^"]+)"/g)) assert.ok(messages[key] || identities.has(key), `Missing translation: ${key}`);
 }
-
-assert.match(scheduleRequest(), /매일 09:00/);
-assert.match(scheduleRequest({ kind: 'weekly', time: '08:30', timezone: 'America/New_York', source: 'google' }), /매주 월요일 08:30/);
-assert.match(scheduleRequest({ kind: 'weekly', source: 'google' }), /자동 복제되지/);
-assert.match(scheduleRequest({ kind: 'reminder', title: '회의', date: '2028-02-29' }), /자동으로 바뀌지/);
-for (const input of [{ kind: 'unknown' }, { time: '25:00' }, { timezone: 'invalid' }, { kind: 'reminder', title: '회의', date: '2027-02-29' }, { kind: 'reminder', date: '2028-02-29' }]) assert.throws(() => scheduleRequest(input));
-const toolResult = await handleMcp({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'prepare_chatgpt_schedule', arguments: { kind: 'daily' } } });
-assert.match(toolResult.body.result.content[0].text, /request_only/);
 
 const savedPassword = config.appPassword;
 const validCookie = issueCookie().split(';')[0];
@@ -62,7 +53,7 @@ try {
   const note = await (await get('/api/notes/daily', { headers: { cookie: validCookie } })).json();
   assert.equal(note.note.text, '# 오늘 브리핑');
   assert.equal((await get('/api/me')).status, 401);
-  console.log('✓ Assistant: schedule requests, MCP handoff, provider branding, authenticated Actions read/write, fail-closed login');
+  console.log('✓ Assistant: provider branding, authenticated Actions read/write, fail-closed login');
 } finally {
   server.closeAllConnections();
   await new Promise(resolve => server.close(resolve));

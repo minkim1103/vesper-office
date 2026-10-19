@@ -5,9 +5,8 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
-import { scheduleRequest } from '../public/assistant.js';
 
-const out = new URL('../artifacts/schedule-test/', import.meta.url);
+const out = new URL('../artifacts/external-briefing-test/', import.meta.url);
 await fs.mkdir(out, { recursive: true });
 const base = 'http://127.0.0.1:3217';
 const results = [];
@@ -29,13 +28,6 @@ const saveDaily = async markdown => {
 try {
   await once(server.stdout, 'data');
   const today = (await mcp('get_today')).today;
-  const request = await mcp('prepare_chatgpt_schedule', { kind: 'daily', time: '09:00' });
-  assert.equal(request.status, 'request_only');
-  record('Real ChatGPT scheduling', 'UNVERIFIED', 'Endpoint returns request_only; no task ID or next-run readback. No deployed URL or connected ChatGPT task.');
-  const weekly = scheduleRequest({ kind: 'weekly' });
-  record('Workstream scheduling prompt', weekly.includes('save_briefing') ? 'PASS' : 'FAIL', 'Weekly prompt mentions project progress but only instructs save_daily_briefing.');
-  const schema = await (await fetch(base + '/api/actions/openapi.json')).json();
-  record('Actions Workstream write endpoint', Object.keys(schema.paths).some(p => p.includes('project')) ? 'PASS' : 'FAIL', 'Actions exposes only current context and daily briefing; Workstream writes require MCP save_briefing.');
   const ev = await mcp('create_event', { title: '[테스트] 주간 업무 회의', category: 'Work', startDate: today, startTime: '10:00', endTime: '11:00' });
   await mcp('update_event', { id: ev.created.id, startTime: '10:30', endTime: '11:30' });
   await mcp('edit_topic', { op: 'create', name: 'Vesper 배포 준비 · 테스트', tag: 'Vesper', brief: 'GitHub 공개 및 개인 Vercel 배포 준비', target: today });
@@ -70,12 +62,13 @@ try {
   const note = await (await fetch(base + '/api/notes/daily', { headers: { cookie } })).json();
   assert.match(note.note.text, /2차/);
   record('Simulated delayed daily write + readback', 'PASS', `Local timer lateness ${actual - due} ms. This is not ChatGPT timing evidence.`);
-  console.log('Waiting 65 real seconds with the calendar open to check automatic updates.');
-  await new Promise(resolve => setTimeout(resolve, 65000));
+  console.log('Waiting 35 real seconds with the calendar open to check automatic updates.');
+  await new Promise(resolve => setTimeout(resolve, 35000));
   const stale = (await page.locator('#noteView').innerText()).includes('1차');
-  record('Daily automatic update while open', stale ? 'FAIL' : 'PASS', 'Server has second version; open mobile viewport still shows first version after 65 seconds of real time.');
+  assert.equal(stale, false, 'New external briefing should replace the displayed note');
+  record('Daily automatic update while open', 'PASS', 'New external result displayed without manual refresh within 35 seconds.');
   await page.waitForTimeout(500);
-  await page.screenshot({ path: new URL('02-mobile-daily-stale.png', out).pathname });
+  await page.screenshot({ path: new URL('02-mobile-daily-updated.png', out).pathname });
   await page.locator('[data-close]').click();
   await page.locator('#refreshBtn').click();
   await page.waitForResponse(r => r.url().endsWith('/api/notes/daily'));
@@ -100,15 +93,10 @@ try {
   await page.evaluate(() => window.dispatchEvent(new WheelEvent('wheel', { deltaX: -150, deltaY: 0 })));
   await page.locator('#catBtn').click();
   await page.locator('#sheetBody').getByRole('button', { name: '설정', exact: true }).click();
-  await page.locator('#newSchedule').click();
-  await page.locator('#scheduleForm button[type=submit]').click();
-  await page.locator('#schedulePrompt').waitFor();
-  const prompt = await page.locator('#schedulePrompt').inputValue();
-  const link = await page.locator('.schedule-open').getAttribute('href');
-  assert.equal(new URL(link).searchParams.get('q'), prompt);
-  record('Mobile schedule form and ChatGPT handoff URL', 'PASS', 'Generated request only; link not submitted to ChatGPT.');
+  assert.equal(await page.locator('#assistantSetting, #newSchedule, #scheduleForm').count(), 0);
+  record('Settings use fixed server assistant and external scheduling', 'PASS');
   await page.waitForTimeout(500);
-  await page.screenshot({ path: new URL('05-mobile-schedule-request.png', out).pathname });
+  await page.screenshot({ path: new URL('05-mobile-settings.png', out).pathname });
   record('Browser JavaScript errors', pageErrors.length ? 'FAIL' : 'PASS', pageErrors.join('; '));
 } finally {
   if (browser) await browser.close();

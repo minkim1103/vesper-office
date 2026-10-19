@@ -3,11 +3,11 @@ import * as svc from './service.js';
 import * as tasks from './tasks.js';
 import { todayStr, koDate } from './time.js';
 import { config } from './config.js';
-import { scheduleRequest } from '../public/assistant.js';
 
 const SUPPORTED = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
 
-const INSTRUCTIONS = `이 서버는 사용자의 개인 캘린더입니다. 모든 일정은 사용자의 iCloud(애플 캘린더)와, 연결돼 있다면 Google 캘린더와도 양방향으로 동기화됩니다.
+const INSTRUCTIONS = `예약 생성·수정·실행은 연결된 AI 서비스에서 관리합니다. 예약 실행 때마다 최신 자료를 조회하고, 일정 브리핑은 save_daily_briefing, 업무 브리핑은 save_briefing으로 마크다운 전문을 저장하세요. 저장하지 않고 대화에만 답하면 웹사이트에 반영되지 않습니다.
+이 서버는 사용자의 개인 캘린더입니다. 모든 일정은 사용자의 iCloud(애플 캘린더)와, 연결돼 있다면 Google 캘린더와도 양방향으로 동기화됩니다.
 - 시간대: ${config.tz}. 날짜는 YYYY-MM-DD, 시간은 HH:mm(24시간)으로 주고받습니다. "오늘/내일/다음 주 화요일" 같은 표현은 get_today 로 오늘 날짜를 확인한 뒤 계산하세요.
 - 카테고리 = 애플 캘린더와 Google 캘린더의 각 캘린더입니다(list_categories 의 provider 로 구분). 모르면 list_categories 로 확인하고, 사용자가 말하지 않았으면 내용에 가장 맞는 카테고리를 고르세요.
 - 사용자가 "잊지 않게 알려줘", "마감", "중요", "꼭 해야 해" 같은 말을 하면 '중요' 일정으로 등록하세요(add_deadline 또는 deadline:true). 아이폰 캘린더에는 제목 앞에 [중요] 가 붙습니다. 알림 시점은 사용자의 말에 맞추고, 말이 없으면 기본값(3일 전·1일 전·당일 오전 9시)을 씁니다. 알림은 아이폰 기본 알림으로 울립니다.
@@ -62,19 +62,6 @@ const eventProps = {
 };
 
 const TOOLS = [
-  {
-    name: 'prepare_chatgpt_schedule',
-    description: 'ChatGPT에 보낼 예약 요청 문구만 만듭니다. 예약 생성·상태 확인·동기화 기능이 아닙니다. 결과를 사용자에게 보여 주고 ChatGPT에서 실제 예약 완료와 다음 실행 시각을 확인하게 하세요.',
-    inputSchema: { type: 'object', properties: {
-      kind: { type: 'string', enum: ['daily', 'weekly', 'reminder'] },
-      time: { type: 'string', description: 'HH:mm, 기본 09:00' },
-      date: { type: 'string', description: '한 번 알림 날짜 YYYY-MM-DD' },
-      title: { type: 'string', description: '한 번 알림 내용' },
-      source: { type: 'string', enum: ['connected', 'google'] },
-    } },
-    annotations: { readOnlyHint: true },
-    run: async a => ({ status: 'request_only', prompt: scheduleRequest({ ...a, timezone: config.tz }) }),
-  },
   {
     name: 'get_today',
     description: '오늘 날짜와 요일, 현재 시각(사용자 시간대)을 알려줍니다.',

@@ -54,7 +54,7 @@ npm start
 
 ## 단계 3 / 8 — GitHub에 올리기
 
-1. https://github.com 에서 **New repository**를 누릅니다. 이름은 `vesper`, 공개 범위는 **Private**을 권장합니다.
+1. https://github.com 에서 **New repository**를 누릅니다. 이름은 `vesper`, 공개 범위는 공개 또는 비공개를 선택합니다. 실제 인증 정보는 저장소에 넣지 않습니다.
 2. **uploading an existing file**을 누르고 `vesper` 폴더 **안의 파일과 폴더 전부**를 끌어다 놓은 뒤 **Commit changes**를 누릅니다.
    - 저장소 맨 위에 `package.json`, `api/`, `public/`, `src/`가 바로 보여야 합니다.
 
@@ -151,7 +151,7 @@ npm start
 2. 예약 작업에 Vesper 커넥터가 연결되어 있는지 확인하고, 한 번 수동으로 실행해 봅니다.
 
 **ChatGPT**
-- 앱의 **가로 세 줄 → 설정 → ChatGPT 예약**에서 요청을 만들고 ChatGPT로 넘길 수 있습니다. 실제 예약 등록과 다음 실행 시각은 ChatGPT에서 확인합니다. 기존 연결이 있는 대화를 사용하려면 요청 복사 후 그 대화에 붙여 넣으세요.
+- 앱에는 예약 생성 버튼이 없습니다. Vesper MCP가 연결된 ChatGPT 대화에서 아래 프롬프트로 예약을 만들고 실제 등록과 다음 실행 시각을 확인합니다. 일정은 `save_daily_briefing`, 업무는 `save_briefing`으로 저장하도록 지시합니다.
 - ChatGPT 예약 작업에서 커스텀 커넥터를 쓸 수 있는지는 플랜과 시점에 따라 다릅니다.
 - 예약 실행에 Vesper 연결 도구를 사용할 수 없으면 ChatGPT에 Google Calendar를 직접 연결하고 예약 자료로 Google Calendar를 선택하세요. iCloud 전용 일정과 Vesper 할 일·노트는 Google Calendar에 자동 복제되지 않습니다.
 - Custom GPT Actions는 `<앱 주소>/api/actions/openapi.json`을 가져와 **API Key → Bearer**에 `MCP_TOKEN`을 입력합니다. 일정 브리핑 조회·저장용이며, Actions가 예약 실행에서 동작함을 보장하지 않습니다. 상세한 경로와 범위는 README를 참고하세요.
@@ -286,3 +286,8 @@ Workstream에 프로젝트를 쓰는 경우에만 필요합니다. 프로젝트�
 - `APP_PASSWORD`, `MCP_TOKEN`, 앱 암호는 Vercel 환경변수에만 넣습니다. 코드나 채팅에는 넣지 마세요.
 - 커넥터 주소(토큰 포함)는 비밀번호처럼 다룹니다.
 - 토큰이 새어 나갔다면 `MCP_TOKEN`을 새 값으로 바꾸고 Redeploy한 뒤, AI 커넥터 설정도 새 값으로 바꾸세요.
+
+
+## v2.31 운영 방식
+
+사용자 한 명이 Claude 또는 ChatGPT 한쪽을 연결해 사용합니다. Vercel의 `ASSISTANT` 환경변수로 그 AI를 지정하고 다시 배포합니다. 브라우저 설정에는 언어와 테마만 있습니다. 외부 AI 예약이 최신 자료를 읽어 마크다운을 생성하고, 일정은 `save_daily_briefing`, 업무는 `save_briefing`으로 저장합니다. 페이지가 보이는 동안 최대 약 30초 후 다시 조회하며, 휴대폰에서 앱으로 복귀할 때도 조회합니다. 이는 외부 예약 실행 시각의 보장을 뜻하지 않습니다.

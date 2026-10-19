@@ -1,7 +1,7 @@
 // Vesper — 프론트엔드 (빌드 도구 없이 바로 동작)
-import { ASSISTANTS, scheduleRequest } from './assistant.js';
+import { ASSISTANTS } from './assistant.js';
 import { t as tr, locale, translate, observeTranslations } from './i18n.js';
-const VERSION = '2.30';
+const VERSION = '2.31';
 
 /* ───────────── 도우미 ───────────── */
 const $ = (s, el = document) => el.querySelector(s);
@@ -76,8 +76,8 @@ function applyAssistant(id) {
   $('link[rel="manifest"]').href = `/api/manifest?assistant=${theme}`;
   $$('meta[name="theme-color"]').forEach(el => { el.content = theme === 'chatgpt' ? (el.media.includes('dark') ? '#182825' : '#F4F8F5') : (el.media.includes('dark') ? '#262624' : '#FAF9F5'); });
 }
-applyAssistant(store.get('assistant', 'claude'));
-fetch('/api/branding', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(ai => { if (ai) applyAssistant(store.get('assistant', ai.id)); }).catch(() => {});
+applyAssistant('claude');
+fetch('/api/branding', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(ai => { if (ai) applyAssistant(ai.id); }).catch(() => {});
 const STAR = '<svg class="star" viewBox="0 0 24 24"><path d="M12 2Q13.3 10.7 22 12Q13.3 13.3 12 22Q10.7 13.3 2 12Q10.7 10.7 12 2Z"/></svg>';
 const ICON = {
   clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
@@ -167,7 +167,7 @@ async function start() {
   try {
     const me = await api('/api/me');
     state.mode = me.mode; state.google = me.google || 'off'; state.tz = me.tz;
-    applyAssistant(store.get('assistant', me.assistant?.id || 'claude'));
+    applyAssistant(me.assistant?.id || 'claude');
   } catch { return; }
   $('#login').hidden = true; $('#app').hidden = false;
   $('#demoBadge').hidden = state.mode !== 'demo';
@@ -702,7 +702,6 @@ function openDetail(e) {
     <div class="sheet-head"><span></span><button class="link" data-close data-i18n="Close">Close</button></div>
     <h2 class="detail-title">${e.deadline ? STAR : ''}${esc(e.title)}</h2>
     <div class="detail-rows">${rows.join('')}</div>
-    <button class="btn ghost schedule-item" id="eventSchedule" data-i18n="ChatGPT reminder">ChatGPT reminder</button>
     ${state.briefs?.[e.id] ? `<div class="brief-slot">${briefCard(state.briefs[e.id])}</div>` : ''}
     ${e.readOnly ? '' : `<div class="actions">
       <button class="btn danger" id="delBtn" data-i18n="Delete">Delete</button>
@@ -710,7 +709,6 @@ function openDetail(e) {
     </div>`}`);
   $('[data-close]').addEventListener('click', closeSheet);
   const b = state.briefs?.[e.id];
-  $('#eventSchedule').addEventListener('click', () => openSchedule({ title: e.title, date: e.startDate, time: e.startTime || '09:00' }));
   if (b) {
     const wire = () => $('.brief-slot button.ev-brief')?.addEventListener('click', () => { stackSheet(() => openDetail(e)); openNote(b.key); });
     wire();
@@ -1160,11 +1158,9 @@ function openTask(t) {
       <button class="btn danger" id="tDel" data-i18n="Delete">Delete</button>
       <button class="btn ghost" id="tEdit" data-i18n="Edit">Edit</button>
       <button class="btn primary" id="tDone">${t.done ? tr('Mark not done') : tr('Mark done')}</button>
-    </div>
-    ${!t.done && t.due ? '<button class="btn ghost schedule-item" id="taskSchedule" data-i18n="ChatGPT reminder">ChatGPT reminder</button>' : ''}`);
+    </div>`);
   $('[data-close]').addEventListener('click', closeSheet);
   $('#tDone').addEventListener('click', () => { closeSheet(); toggleDone(t); });
-  $('#taskSchedule')?.addEventListener('click', () => openSchedule({ title: t.title, date: t.due.date, time: t.due.time || '09:00' }));
   $('#tEdit').addEventListener('click', () => openTaskEditor(t));
   $('#tTopic')?.addEventListener('click', () => goPage(1).then(() => openTopic(state.topics.find((x) => x.id === t.topicId))));
   // 이 할 일에 대한 AI 노트(브리핑·자료 조사)가 있으면 맨 위에
@@ -1284,7 +1280,7 @@ async function loadNote(key) {
     const { note } = await api(`/api/notes/${encodeURIComponent(key)}`);
     const prev = state.notes[key];
     state.notes[key] = note;
-    if (note && prev && prev.updatedAt !== note.updatedAt) onNoteChanged(key);
+    if (note?.updatedAt !== prev?.updatedAt) onNoteChanged(key);
     return note;
   } catch { return state.notes[key] || null; }
 }
@@ -1295,8 +1291,13 @@ function onNoteChanged(key) {
   const open = $('#noteView');
   if (open && open.dataset.key === key) openNote(key);
 }
-// Claude 앱에서 브리핑이 갱신되면 반영: 화면이 보일 때 1분마다 확인
-setInterval(() => { if (!document.hidden && !$('#app').hidden && state.page === 1) loadNote('briefing'); }, 60_000);
+// 외부 AI가 저장한 브리핑을 화면에 반영합니다. 예약 실행은 AI 서비스에서 관리합니다.
+function refreshBriefingNotes() {
+  if (document.hidden || !$('#login').hidden) return;
+  loadNote('daily');
+  if (state.page === 1) loadNote('briefing');
+}
+setInterval(refreshBriefingNotes, 30_000);
 
 const topicTasks = (id) => state.tasks.filter((t) => t.topicId === id);
 function topicStats(tp) {
@@ -1637,7 +1638,7 @@ function openNote(key) {
   const n = state.notes[key];
   const daily = key === 'daily';
   if (!n) {
-    if (daily) openSheet(`<div class="sheet-head"><span class="crumb" data-i18n="Briefing">Briefing</span><button class="link" data-close data-i18n="Close">Close</button></div><p class="empty-note" data-i18n="No briefing yet">No briefing yet</p>`), $('[data-close]').addEventListener('click', closeSheet);
+    if (daily) openSheet(`<div class="sheet-head"><span class="crumb" data-i18n="Briefing">Briefing</span><button class="link" data-close data-i18n="Close">Close</button></div><p id="noteView" data-key="daily" class="empty-note" data-i18n="No briefing yet">No briefing yet</p>`), $('[data-close]').addEventListener('click', closeSheet);
     return;
   }
   state.noteSeen[key] = n.updatedAt; store.set('noteSeen', state.noteSeen);
@@ -1664,7 +1665,7 @@ function renderBell() {
   const n = state.notes.daily;
   $('#bellBtn .new-dot').hidden = !(n && state.noteSeen.daily !== n.updatedAt && ymd(new Date(n.updatedAt)) === today());
 }
-$('#bellBtn').addEventListener('click', async () => { if (!state.notes.daily) await loadNote('daily'); openNote('daily'); });
+$('#bellBtn').addEventListener('click', async () => { await loadNote('daily'); openNote('daily'); });
 
 /* ───────────── 이벤트 연결 ───────────── */
 function goToday() {
@@ -1688,7 +1689,10 @@ $$('.views button').forEach((b) => b.addEventListener('click', () => {
 let hiddenAt = 0;
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) hiddenAt = Date.now();
-  else if (!$('#app').hidden && Date.now() - hiddenAt > 30_000) refresh();
+  else if ($('#login').hidden) {
+    refreshBriefingNotes();
+    if (Date.now() - hiddenAt > 30_000) refresh();
+  }
 });
 window.addEventListener('resize', () => { if (!$('#app').hidden) renderHeader(); });
 
@@ -1702,66 +1706,19 @@ function openAssistantSettings() {
     <div class="sheet-head"><h2 data-i18n="Settings">Settings</h2><button class="link" data-close data-i18n="Done">Done</button></div>
     <div class="group settings-group">
       <label class="row"><span class="lbl" data-i18n="Language">Language</span><select id="languageSetting" aria-label="Language" data-i18n-aria-label="Language"><option value="ko" ${locale() === 'ko-KR' ? 'selected' : ''}>한국어</option><option value="en" ${locale() === 'en-US' ? 'selected' : ''}>English</option></select></label>
-      <label class="row"><span class="lbl" data-i18n="Assistant">Assistant</span><select id="assistantSetting" aria-label="Assistant" data-i18n-aria-label="Assistant">${Object.values(ASSISTANTS).map(ai => `<option value="${ai.id}" ${AI.id === ai.id ? 'selected' : ''}>${ai.name}</option>`).join('')}</select></label>
       <label class="row"><span class="lbl" data-i18n="Theme">Theme</span><select id="themeSetting" aria-label="Theme" data-i18n-aria-label="Theme">${[['auto',tr('Follow assistant')],['claude','Claude'],['chatgpt','ChatGPT']].map(([id,label]) => `<option value="${id}" ${store.get('theme','auto') === id ? 'selected' : ''}>${label}</option>`).join('')}</select></label>
-    </div>
-    <button class="btn ghost schedule-item settings-schedule" id="newSchedule" data-i18n="ChatGPT schedule">ChatGPT schedule</button>`);
+    </div>`);
   $('[data-close]').onclick = closeSheet;
   $('#languageSetting').onchange = event => {
     store.set('language', event.target.value);
     try { sessionStorage.setItem('openSettings', '1'); } catch { /* optional navigation state */ }
     location.reload();
   };
-  $('#assistantSetting').onchange = event => {
-    store.set('assistant', event.target.value); applyAssistant(event.target.value);
-    renderBell(); if (state.page === 1) renderWorkstream();
-  };
   $('#themeSetting').onchange = event => {
     store.set('theme', event.target.value); applyAssistant(AI.id);
   };
-  $('#newSchedule').onclick = () => openSchedule();
 }
 
-function openSchedule(item) {
-  openSheet(`
-    <div class="sheet-head"><h2 data-i18n="Schedule with ChatGPT">Schedule with ChatGPT</h2><button class="link" data-close data-i18n="Close">Close</button></div>
-    <form id="scheduleForm" class="form schedule-form">
-      <label><span data-i18n="Schedule">Schedule</span><select name="kind"><option value="daily" data-i18n="Daily briefing">Daily briefing</option><option value="weekly" data-i18n="Weekly briefing">Weekly briefing</option><option value="reminder" ${item ? 'selected' : ''} data-i18n="One-time reminder">One-time reminder</option></select></label>
-      <div id="reminderFields"><label><span data-i18n="Content">Content</span><input name="title" maxlength="300" value="${esc(item?.title || '')}" placeholder="Title" data-i18n-placeholder="Title"></label><label><span data-i18n="Date">Date</span><input name="date" type="date" value="${esc(item?.date || today())}"></label></div>
-      <label><span data-i18n="Time">Time</span><input name="time" type="time" value="${esc(item?.time || '09:00')}" required></label>
-      <label id="scheduleSource"><span data-i18n="Source">Source</span><select name="source"><option value="connected" data-i18n="Vesper">Vesper</option><option value="google" data-i18n="Google Calendar">Google Calendar</option></select></label>
-      <button class="btn primary" type="submit" data-i18n="Request preview">Request preview</button>
-    </form>`);
-  $('[data-close]').onclick = closeSheet;
-  const form = $('#scheduleForm');
-  const update = () => { const reminder = form.elements.kind.value === 'reminder'; $('#reminderFields').hidden = !reminder; $('#scheduleSource').hidden = reminder; form.elements.title.required = reminder; form.elements.date.required = reminder; };
-  form.elements.kind.onchange = update;
-  update();
-  form.onsubmit = ev => {
-    ev.preventDefault();
-    try {
-      const values = Object.fromEntries(new FormData(form));
-      const timezone = state.tz || 'Asia/Seoul';
-      if (values.kind === 'reminder') {
-        const parts = Object.fromEntries(new Intl.DateTimeFormat('en', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date()).map(p => [p.type, p.value]));
-        if (`${values.date}T${values.time}` <= `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`) throw new Error('앞으로의 날짜와 시각을 선택해 주세요.');
-      }
-      showSchedulePreview(scheduleRequest({ ...values, timezone }));
-    } catch (error) { toast(error.message, true); }
-  };
-}
-
-function showSchedulePreview(prompt) {
-  openSheet(`<div class="sheet-head"><h2 data-i18n="Request preview">Request preview</h2><button class="link" data-close data-i18n="Close">Close</button></div>
-    <textarea id="schedulePrompt" class="schedule-preview" readonly aria-label="ChatGPT schedule" data-i18n-aria-label="ChatGPT schedule">${esc(prompt)}</textarea>
-    <div class="stack-actions"><button id="copySchedule" class="btn ghost" data-i18n="Copy request">Copy request</button>
-    <a class="btn primary schedule-open" href="${esc(ASSISTANTS.chatgpt.url + encodeURIComponent(prompt))}" target="_blank" rel="noopener noreferrer" data-i18n="Continue in ChatGPT">Continue in ChatGPT</a></div>`);
-  $('[data-close]').onclick = closeSheet;
-  $('#copySchedule').onclick = async () => {
-    try { await navigator.clipboard.writeText(prompt); toast('요청을 복사했습니다'); }
-    catch { $('#schedulePrompt').focus(); $('#schedulePrompt').select(); toast('선택된 내용을 복사해 주세요'); }
-  };
-}
 observeTranslations();
 
 start();
