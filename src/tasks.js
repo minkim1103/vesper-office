@@ -1,5 +1,6 @@
 // Spaces: 카테고리별 할 일 — iCloud 'Vesper' 캘린더에 일정으로 저장하고, 알람은 아이폰 기본 알림(VALARM)으로 울립니다.
 import crypto from 'node:crypto';
+import { DEFAULT_BRIEFING_STYLE } from './briefing-style.js';
 import { config } from './config.js';
 import * as svc from './service.js';
 import {
@@ -260,7 +261,7 @@ export async function editTopic(op, a = {}) {
 /* ───────────── 브리핑 · 노트 ───────────── */
 
 // briefing = Workstream 프로젝트 브리핑, daily = 캘린더 일정 브리핑, 그 밖 = 주제 id
-const FIXED_NOTES = { briefing: ['vesper-briefing', 'Project briefing'], daily: ['vesper-daily', 'Daily briefing'], prefs: ['vesper-prefs', 'Assistant notes'] };
+const FIXED_NOTES = { briefing: ['vesper-briefing', 'Project briefing'], daily: ['vesper-daily', 'Daily briefing'], prefs: ['vesper-prefs', 'Assistant notes'], 'briefing-style': ['vesper-briefing-style', 'Personal briefing style'] };
 const isTaskKey = (key) => /^(task|ev)-[A-Za-z0-9-]{4,80}$/.test(String(key || '')); // 할 일 노트·일정 브리핑 노트
 const noteUid = (key) => (FIXED_NOTES[key] ? FIXED_NOTES[key][0] : isTaskKey(key) ? `vesper-${key}` : `vesper-note-${key}`);
 
@@ -297,6 +298,25 @@ export async function getNotes(keys = []) {
     } catch { /* 실패한 건 빼서 앱이 따로 다시 받게 */ }
   }));
   return out;
+}
+
+/** Personal preferences live in the user's own calendar, never in the shared repository. */
+export async function getBriefingStyle() {
+  const [custom, feedback] = await Promise.all([getNote('briefing-style'), getNote('prefs')]);
+  return {
+    defaultInstructions: DEFAULT_BRIEFING_STYLE,
+    personalInstructions: custom?.text || '',
+    feedbackNotes: feedback?.text || '',
+    precedence: '현재 사용자의 명시적 요청 > 저장된 개인 지시 > 기본 가이드. 사실 정확성과 일정·할 일 임의 변경 금지는 항상 유지합니다.',
+    updatedAt: custom?.updatedAt || null,
+  };
+}
+
+export async function saveBriefingStyle(markdown) {
+  if (typeof markdown !== 'string' || markdown.length > 12000) throw fail('개인 지시는 12000자 이하의 문자열이어야 합니다.');
+  const doc = { text: markdown.trim(), updatedAt: Date.now() };
+  await saveDoc('vesper-briefing-style', 'Personal briefing style', doc);
+  return { saved: doc.updatedAt, reset: !doc.text };
 }
 
 /** 브리핑 재료(제목+메모)의 지문. 노트에 같이 저장해 두고, 메모가 바뀌면 다시 브리핑 */

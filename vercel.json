@@ -1,14 +1,29 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/index?__p=api/:path*" },
-    { "source": "/mcp/:path*", "destination": "/api/index?__p=mcp/:path*" },
-    { "source": "/mcp", "destination": "/api/index?__p=mcp" }
+    {
+      "source": "/api/:path*",
+      "destination": "/api/index?__p=api/:path*"
+    },
+    {
+      "source": "/mcp/:path*",
+      "destination": "/api/index?__p=mcp/:path*"
+    },
+    {
+      "source": "/mcp",
+      "destination": "/api/index?__p=mcp"
+    }
   ],
   "headers": [
     {
       "source": "/sw.js",
-      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
     }
-  ]
+  ],
+  "outputDirectory": "public"
 }

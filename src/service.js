@@ -2,7 +2,7 @@
 import { config } from './config.js';
 import * as icloud from './caldav.js';
 import * as google from './google.js';
-import { tasksForBriefing, topicsForBriefing } from './tasks.js';
+import { tasksForBriefing, topicsForBriefing, getBriefingStyle } from './tasks.js';
 import { demoStore } from './demo.js';
 import {
   expandResource, buildNewEvent, updateEventICS, excludeOccurrenceICS, describeRule,
@@ -432,6 +432,9 @@ export async function briefing({ date, days = 14 } = {}) {
     date: today, generatedAt: `${now.y}-${String(now.m).padStart(2, '0')}-${String(now.d).padStart(2, '0')} ${String(now.hh).padStart(2, '0')}:${String(now.mm).padStart(2, '0')}`,
     today: todays, tomorrow, deadlines: uniqDeadlines.map((e) => ({ ...e, dday: dday(e.startDate, today) })),
     conflicts, text, tasks: tk, research,
+    horizon: events.filter(e => e.endDate >= today),
+    planningTasks: (await tasksForBriefing(today, Math.max(days, 14))).upcoming,
+    briefingStyle: await getBriefingStyle(),
   };
 }
 

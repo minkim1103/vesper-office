@@ -1,4 +1,9 @@
-# Vesper — 개인 일정 비서 (v2.32)
+# Vesper — 개인 일정 비서 (v2.33)
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fminkim1103%2Fvesper-office&project-name=vesper-office&repository-name=vesper-office&env=ICLOUD_USERNAME%2CICLOUD_APP_PASSWORD%2CAPP_PASSWORD%2CMCP_TOKEN%2CASSISTANT%2CTIMEZONE&envDefaults=%7B%22ASSISTANT%22%3A%22chatgpt%22%2C%22TIMEZONE%22%3A%22Asia%2FSeoul%22%7D&envDescription=%EA%B0%9C%EC%9D%B8+iCloud+%EC%97%B0%EA%B2%B0+%EC%A0%95%EB%B3%B4%EC%99%80+%EC%9B%B9+%EB%A1%9C%EA%B7%B8%EC%9D%B8+%EC%95%94%ED%98%B8%2C+%EC%A7%81%EC%A0%91+%EC%83%9D%EC%84%B1%ED%95%9C+MCP+%ED%86%A0%ED%81%B0%EC%9D%84+%EC%9E%85%EB%A0%A5%ED%95%98%EC%84%B8%EC%9A%94.&envLink=https%3A%2F%2Fgithub.com%2Fminkim1103%2Fvesper-office%2Fblob%2Fmain%2Fdocs%2FPERSONAL_SETUP.md)
+
+각자 자신의 GitHub·Vercel·iCloud로 설치합니다. [개인 설치 가이드](docs/PERSONAL_SETUP.md)에 앱 암호와 MCP 토큰 생성부터 AI 연결까지 정리되어 있습니다.
+
 
 아이폰 애플 캘린더(iCloud)와 양방향으로 동기화되는 개인 캘린더 겸 할 일 앱입니다. **Claude 또는 ChatGPT**와 연결해서 말로 일정과 할 일을 관리합니다.
 
@@ -92,3 +97,7 @@ test/             테스트
 - 일정의 브리핑 선택은 AI 이름 없이 **브리핑**으로 표시합니다. 연결된 Claude 또는 ChatGPT가 같은 요청을 처리합니다.
 - 프로젝트에서 할 일을 저장하거나 취소하면 프로젝트 상세로 돌아갑니다. 마감은 선택 사항이며, 기존 마감 날짜·시각도 지울 수 있습니다.
 - 데모는 프로세스 메모리 저장이므로 재시작 또는 Vercel 인스턴스 교체 시 사라질 수 있습니다. iCloud 연결 시 프로젝트 설정·할 일·노트는 iCloud의 Vesper 캘린더에 저장됩니다. 실제 계정 연결 후 저장·재조회 검증을 진행하세요.
+
+## 기본 브리핑과 개인 맞춤
+
+[기본 가이드](docs/BRIEFING_STYLE.md)는 모든 사용자에게 공통으로 제공됩니다. `get_briefing`과 `get_briefing_style`이 기본 가이드·개인 지시·피드백을 전달합니다. 사용자가 스타일을 바꾸라고 요청하면 AI가 `save_briefing_style`로 본인의 iCloud에만 저장합니다. 현재 명시적 요청 → 개인 지시 → 기본 가이드 순서이며, 기본 가이드는 변경하지 않습니다. 실제 문장 생성은 연결된 AI가 수행합니다.

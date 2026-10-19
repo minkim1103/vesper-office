@@ -1,4 +1,4 @@
-# Vesper 설치 가이드 — 개인 일정 비서 (v2.30)
+# Vesper 설치 가이드 — 개인 일정 비서 (v2.33)
 
 > **이 파일을 받은 AI(Claude 또는 ChatGPT)에게**
 > 사용자가 "구현 방법 알려줘", "설치 도와줘"처럼 말하면 아래 **단계 1부터 순서대로** 안내하세요.
@@ -36,7 +36,7 @@ cd vesper
 npm start
 ```
 
-브라우저로 `http://localhost:3000`을 열고 비밀번호 `demo`로 로그인합니다. 샘플 일정이 있는 데모 모드로 열립니다.
+브라우저로 `http://localhost:3000`을 열고 비밀번호 `demo`로 로그인합니다. 빈 메모리 저장소의 데모 모드로 열립니다.
 
 ---
 
@@ -54,6 +54,8 @@ npm start
 
 ## 단계 3 / 8 — GitHub에 올리기
 
+간단한 설치는 [개인 설치 가이드](docs/PERSONAL_SETUP.md)와 README의 배포 버튼을 사용하세요. 수동으로 올리는 경우:
+
 1. https://github.com 에서 **New repository**를 누릅니다. 이름은 `vesper`, 공개 범위는 공개 또는 비공개를 선택합니다. 실제 인증 정보는 저장소에 넣지 않습니다.
 2. **uploading an existing file**을 누르고 `vesper` 폴더 **안의 파일과 폴더 전부**를 끌어다 놓은 뒤 **Commit changes**를 누릅니다.
    - 저장소 맨 위에 `package.json`, `api/`, `public/`, `src/`가 바로 보여야 합니다.
@@ -64,7 +66,7 @@ npm start
 
 1. https://vercel.com 에 GitHub 계정으로 가입합니다.
 2. **Add New → Project**에서 `vesper` 저장소를 **Import**합니다.
-3. Framework Preset은 **Other** 그대로 둡니다.
+3. Framework Preset은 **Other**, 출력 폴더는 `public`입니다(vercel.json에 지정되어 있습니다).
 4. **Environment Variables**에 아래 값을 직접 입력하고 **Deploy**를 누릅니다.
 
 | 이름 | 값 |
@@ -162,7 +164,8 @@ npm start
 사용자의 아침 "일정 브리핑"을 만들어 주세요. 당신은 사용자의 비서입니다.
 
 ## 1. 자료 (Vesper 커넥터)
-- get_briefing(인자 없음): 구조화된 필드(today, conflicts, deadlines, tasks, tomorrow)를 보고 새로 정리하세요.
+- get_briefing(인자 없음): briefingStyle의 개인 지시를 기본 가이드보다 우선하고, 구조화된 필드(today, conflicts, deadlines, tasks, tomorrow, horizon)를 보고 새로 정리하세요. text는 원시 요약으로 최종 브리핑 문구가 아닙니다.
+- 아래 형식은 예시이며, 현재 사용자 요청과 저장된 개인 스타일이 우선합니다.
 - list_events(from=오늘, to=오늘+21일): 앞으로 3주 일정과 category(캘린더 이름).
 - list_topics: 프로젝트(이름·태그).
 - get_note(key="prefs"): 비서 학습 메모. 있으면 꼭 읽고 따르세요.

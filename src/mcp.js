@@ -6,7 +6,8 @@ import { config } from './config.js';
 
 const SUPPORTED = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
 
-const INSTRUCTIONS = `예약 생성·수정·실행은 연결된 AI 서비스에서 관리합니다. 예약 실행 때마다 최신 자료를 조회하고, 일정 브리핑은 save_daily_briefing, 업무 브리핑은 save_briefing으로 마크다운 전문을 저장하세요. 저장하지 않고 대화에만 답하면 웹사이트에 반영되지 않습니다.
+const INSTRUCTIONS = `브리핑 작성 시 get_briefing의 briefingStyle을 매번 읽으세요. 현재 사용자의 명시적 요청 > personalInstructions > defaultInstructions 순서로 적용하고 feedbackNotes와 get_note(daily)의 이전 제안을 참고하세요. 가이드의 예시는 실제 일정이 아닙니다. horizon은 향후 일정 자료이며 빈 시간·이동 시간·준비 소요가 확인되지 않으면 추정임을 표시하세요. 브리핑 중 일정·할 일을 임의 변경하지 마세요. 사용자가 스타일 변경을 명시하면 get_briefing_style로 기존 개인 지시를 읽고 필요한 부분만 고쳐 save_briefing_style로 저장하세요. 다른 선호는 유지합니다.
+예약 생성·수정·실행은 연결된 AI 서비스에서 관리합니다. 예약 실행 때마다 최신 자료를 조회하고, 일정 브리핑은 save_daily_briefing, 업무 브리핑은 save_briefing으로 마크다운 전문을 저장하세요. 저장하지 않고 대화에만 답하면 웹사이트에 반영되지 않습니다.
 이 서버는 사용자의 개인 캘린더입니다. 모든 일정은 사용자의 iCloud(애플 캘린더)와, 연결돼 있다면 Google 캘린더와도 양방향으로 동기화됩니다.
 - 시간대: ${config.tz}. 날짜는 YYYY-MM-DD, 시간은 HH:mm(24시간)으로 주고받습니다. "오늘/내일/다음 주 화요일" 같은 표현은 get_today 로 오늘 날짜를 확인한 뒤 계산하세요.
 - 카테고리 = 애플 캘린더와 Google 캘린더의 각 캘린더입니다(list_categories 의 provider 로 구분). 모르면 list_categories 로 확인하고, 사용자가 말하지 않았으면 내용에 가장 맞는 카테고리를 고르세요.
@@ -100,7 +101,7 @@ const TOOLS = [
   },
   {
     name: 'get_briefing',
-    description: '하루 브리핑: 오늘 일정, 겹치는 일정, 다가오는 중요 일정(D-day), 내일 일정, Tasks 할 일(지난 것·7일 이내 마감·오늘 알람). 아침 브리핑에 사용합니다.',
+    description: '브리핑 재료: 오늘·내일 일정, 향후 horizon 일정, 겹침, 중요 마감, 할 일, 프로젝트와 briefingStyle(기본·개인 지시·피드백). 매 실행마다 새로 읽고 개인 지시를 기본 가이드보다 우선해 작성하세요. text는 원시 요약입니다.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -114,7 +115,7 @@ const TOOLS = [
       return {
         text: b.text, today: b.today.map(slim), deadlines: b.deadlines.map((e) => ({ ...slim(e), dday: e.dday })), tomorrow: b.tomorrow.map(slim), conflicts: b.conflicts,
         tasks: { overdue: b.tasks.overdue.map(slimTask), upcoming: b.tasks.upcoming.map(slimTask), alarmsToday: b.tasks.alarmsToday.map(slimTask) },
-        research: b.research,
+        research: b.research, horizon: b.horizon.map(slim), planningTasks: b.planningTasks.map(slimTask), briefingStyle: b.briefingStyle,
       };
     },
   },
@@ -348,6 +349,19 @@ TOOLS.push(
       }
       return { tasks: out };
     },
+  },
+  {
+    name: 'get_briefing_style',
+    description: '기본 브리핑 가이드, 개인별 변경 지시와 피드백 메모를 읽습니다. 개인 지시가 기본 가이드보다 우선합니다.',
+    inputSchema: { type: 'object', properties: {} },
+    annotations: { readOnlyHint: true },
+    run: async () => tasks.getBriefingStyle(),
+  },
+  {
+    name: 'save_briefing_style',
+    description: '사용자가 명시한 개인 브리핑 스타일을 저장합니다. 먼저 get_briefing_style로 기존 지시를 읽고 요청한 부분만 수정해 전체를 저장하세요. markdown 빈 문자열은 기본값으로 초기화합니다. 브리핑 작성만 요청했을 때는 호출하지 마세요.',
+    inputSchema: { type: 'object', properties: { markdown: { type: 'string', maxLength: 12000 } }, required: ['markdown'] },
+    run: async a => tasks.saveBriefingStyle(a.markdown),
   },
   {
     name: 'save_secretary_notes',
