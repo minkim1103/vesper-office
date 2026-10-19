@@ -67,8 +67,9 @@
       <section id="deadlines" class="deadlines" aria-label="Important" data-i18n-aria-label="Important"></section>
       <label class="search">
         <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
-        <input id="search" type="search" placeholder="Search" data-i18n-placeholder="Search">
+        <input id="search" type="search" placeholder="Search events" aria-label="Search events" data-i18n-placeholder="Search events" data-i18n-aria-label="Search events">
       </label>
+      <p id="searchStatus" class="search-status" role="status"></p>
       <div id="agenda"></div>
       <button id="moreBtn" class="btn ghost more" data-i18n="Load more">Load more</button>
     </main>
@@ -90,22 +91,10 @@
       <h1 class="sp-title" data-i18n="Workstream">Workstream</h1>
       <button id="wsAdd" class="icon-btn" aria-label="New project" data-i18n-aria-label="New project"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
     </header>
+    <p id="wsSummary" class="ws-summary" hidden></p>
     <button id="wsBrief" class="claude-card" hidden></button>
     <nav id="wsFilter" class="ws-filter"></nav>
-    <section class="ws-week">
-      <div class="wk-head">
-        <h2 id="wsRange"></h2>
-        <div class="wk-nav">
-          <button id="wsThisWeek" class="chip-btn" hidden data-i18n="This week">This week</button>
-          <button id="wsPrev" class="icon-btn sm" aria-label="Previous week" data-i18n-aria-label="Previous week"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
-          <button id="wsNext" class="icon-btn sm" aria-label="Next week" data-i18n-aria-label="Next week"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
-        </div>
-      </div>
-      <div class="ws-days" id="wsDays"></div>
-      <div class="ws-board" id="wsBoard"></div>
-    </section>
     <button id="wsUnsorted" class="unsorted-row" hidden></button>
-    <h3 class="ws-sec" data-i18n="Topics">Topics</h3>
     <div id="wsTopics" class="ws-topics"></div>
   </section>
 

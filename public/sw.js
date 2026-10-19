@@ -1,6 +1,6 @@
 // 앱 화면(껍데기)만 캐시해서 빠르게 열리게 합니다. 일정 데이터(/api)는 항상 서버에서 새로 받습니다.
-const CACHE = 'vesper-shell-2.32';
-const SHELL = ['/', '/index.html', '/styles.css', '/app.js', '/assistant.js', '/i18n.js', '/manifest.webmanifest', '/icons/logo.svg', '/icons/chatgpt-logo.svg', '/icons/icon-192.png', '/icons/chatgpt-icon-192.png'];
+const CACHE = 'vesper-shell-2.34';
+const SHELL = ['/', '/index.html', '/styles.css', '/app.js', '/assistant.js', '/search.js', '/i18n.js', '/manifest.webmanifest', '/icons/logo.svg', '/icons/chatgpt-logo.svg', '/icons/icon-192.png', '/icons/chatgpt-icon-192.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

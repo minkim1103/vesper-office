@@ -1,5 +1,6 @@
 // 캘린더 핵심 로직 — 웹앱 API 와 Claude(MCP) 가 함께 사용합니다.
 import { config } from './config.js';
+import { matchesEventQuery } from '../public/search.js';
 import * as icloud from './caldav.js';
 import * as google from './google.js';
 import { tasksForBriefing, topicsForBriefing, getBriefingStyle } from './tasks.js';
@@ -189,8 +190,7 @@ export async function listEvents({ from, to, categories, query } = {}) {
   }));
   let events = lists.flat();
   if (query) {
-    const q = query.toLowerCase();
-    events = events.filter((e) => [e.title, e.location, e.notes].some((t) => t?.toLowerCase().includes(q)));
+    events = events.filter(e => matchesEventQuery(e, query));
   }
   return events.sort((a, b) => (a.startMs - b.startMs) || (b.allDay - a.allDay) || a.title.localeCompare(b.title));
 }

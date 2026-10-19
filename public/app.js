@@ -1,7 +1,8 @@
 // Vesper — 프론트엔드 (빌드 도구 없이 바로 동작)
 import { ASSISTANTS } from './assistant.js';
+import { splitSearchRanges } from './search.js';
 import { t as tr, locale, translate, observeTranslations } from './i18n.js';
-const VERSION = '2.32';
+const VERSION = '2.34';
 
 /* ───────────── 도우미 ───────────── */
 const $ = (s, el = document) => el.querySelector(s);
@@ -100,6 +101,7 @@ const state = {
   hidden: new Set(store.get('hiddenCats', [])),
   cache: new Map(),
   agendaDays: 45,
+  searchYears: 1,
   query: '',
   mode: 'icloud',
   google: 'off',
@@ -126,11 +128,11 @@ async function api(path, opts = {}) {
 }
 
 const inflight = new Map();
-function fetchRange(from, to, { force = false } = {}) {
-  const key = `${from}|${to}|${state.query}`;
+function fetchRange(from, to, { force = false, query = '' } = {}) {
+  const key = `${from}|${to}|${query}`;
   if (!force && state.cache.has(key)) return Promise.resolve(state.cache.get(key));
   if (!force && inflight.has(key)) return inflight.get(key);
-  const q = state.query ? `&q=${encodeURIComponent(state.query)}` : '';
+  const q = query ? `&q=${encodeURIComponent(query)}` : '';
   const p = api(`/api/events?from=${from}&to=${to}${q}`)
     .then((data) => { state.cache.set(key, data); return data; })
     .finally(() => inflight.delete(key));
@@ -535,9 +537,12 @@ function evRow(e, day, i) {
 /* ───────────── 목록 보기 ───────────── */
 async function renderDeadlines() {
   const box = $('#deadlines');
+  box.hidden = !!state.query;
+  if (state.query) return;
   try {
     const t = today();
     const list = visible(await fetchRange(t, addDays(t, 30))).filter((e) => e.deadline && e.startDate >= t);
+    if (state.query) return;
     const seen = new Set();
     const items = list.filter((e) => !seen.has(e.id + e.startDate) && seen.add(e.id + e.startDate)).slice(0, 12);
     box.innerHTML = items.map((e, i) => `<button class="dl-card" data-i="${i}">
@@ -549,14 +554,34 @@ async function renderDeadlines() {
   } catch { box.innerHTML = ''; }
 }
 
+let agendaRequest = 0;
 async function renderAgenda() {
+  const request = ++agendaRequest, query = state.query;
   renderDeadlines();
   const box = $('#agenda');
   const t = today();
-  const from = state.query ? addDays(t, -60) : t;
-  const to = state.query ? addDays(t, 365) : addDays(t, state.agendaDays);
-  let list = [];
-  try { list = visible(await fetchRange(from, to)); } catch (e) { toast(e.message, true); }
+  const span = state.searchYears * 365;
+  const from = query ? addDays(t, -span) : t;
+  const to = query ? addDays(t, span) : addDays(t, state.agendaDays);
+  box.setAttribute('aria-busy', 'true');
+  let list;
+  try {
+    const batches = await Promise.all(splitSearchRanges(from, to).map(range => fetchRange(range.from, range.to, { query })));
+    const seen = new Set();
+    list = visible(batches.flat().filter(e => { const id = `${e.id}|${e.startDate}|${e.startTime}`; if (seen.has(id)) return false; seen.add(id); return true; }))
+      .sort((a, b) => a.startMs - b.startMs || Number(b.allDay) - Number(a.allDay));
+  }
+  catch (e) {
+    if (request !== agendaRequest) return;
+    box.innerHTML = `<p class="empty-note">${esc(e.message)}</p>`;
+    box.setAttribute('aria-busy', 'false');
+    $('#searchStatus').textContent = '';
+    return;
+  }
+  if (request !== agendaRequest || query !== state.query) return;
+  box.setAttribute('aria-busy', 'false');
+  $('#searchStatus').textContent = query
+    ? `${fmt(from, { year: 'numeric', month: 'numeric', day: 'numeric' })} – ${fmt(to, { year: 'numeric', month: 'numeric', day: 'numeric' })} · ${list.length}${locale() === 'ko-KR' ? '건' : ' results'}` : '';
   const days = new Map();
   for (const e of list) {
     const s = e.startDate < from ? from : e.startDate;
@@ -564,7 +589,7 @@ async function renderAgenda() {
     days.get(s).push(e);
   }
   const keys = [...days.keys()].sort();
-  if (!keys.length) box.innerHTML = '<p class="empty-note" data-i18n="No events">No events</p>';
+  if (!keys.length) box.innerHTML = `<p class="empty-note">${query ? tr('No search results') : tr('No events')}</p>`;
   else {
     box.innerHTML = keys.map((k) => {
       const n = diffDays(t, k);
@@ -574,15 +599,30 @@ async function renderAgenda() {
     }).join('');
     $$('.ev', box).forEach((b) => b.addEventListener('click', () => openDetail(list[+b.dataset.i])));
   }
-  $('#moreBtn').hidden = !!state.query || !keys.length;
+  $('#moreBtn').hidden = query ? state.searchYears >= 5 : !keys.length;
+  $('#moreBtn').textContent = query ? tr('Search wider') : tr('Load more');
+  $('#moreBtn').removeAttribute('data-i18n');
 }
 
 let searchTimer;
-$('#search').addEventListener('input', (e) => {
+function queueSearch(event) {
+  if (event?.isComposing) return;
+  const value = $('#search').value.trim();
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => { state.query = e.target.value.trim(); renderAgenda(); }, 300);
+  // Invalidate pending responses immediately, including during debounce.
+  ++agendaRequest;
+  state.query = value;
+  state.searchYears = 1;
+  searchTimer = setTimeout(() => renderAgenda(), value ? 250 : 0);
+}
+$('#search').addEventListener('input', queueSearch);
+$('#search').addEventListener('compositionend', queueSearch);
+$('#search').addEventListener('search', queueSearch);
+$('#moreBtn').addEventListener('click', () => {
+  if (state.query) state.searchYears += 1;
+  else state.agendaDays += 60;
+  renderAgenda();
 });
-$('#moreBtn').addEventListener('click', () => { state.agendaDays += 60; renderAgenda(); });
 
 /* ───────────── 바텀 시트 ───────────── */
 let closing = null;
@@ -1131,9 +1171,9 @@ function taskRow(t) {
 
 async function toggleDone(t) {
   t.done = !t.done; // 즉시 반영
-  renderSpaces();
+  if (state.page === 1) renderWorkstream(); else renderSpaces();
   try { await api(`/api/tasks/${t.id}`, { method: 'PATCH', body: { done: t.done } }); toast(t.done ? tr('Done') : tr('Reopened')); loadTasks(); }
-  catch (e) { t.done = !t.done; renderSpaces(); toast(e.message, true); }
+  catch (e) { t.done = !t.done; if (state.page === 1) renderWorkstream(); else renderSpaces(); toast(e.message, true); }
 }
 
 function openTaskById(id) { const t = state.tasks.find((x) => x.id === id); if (t) openTask(t); }
@@ -1270,7 +1310,7 @@ const RESEARCH_TAGS = ['프로젝트'];
 const TOPIC_COLORS = ['#6A9BCC', '#7C9A5A', '#C46A9A', '#E3A13B', '#4C9A8F', '#8F7BC8', '#D97757'];
 const STATUS_LABEL = { planned: tr('Planned'), active: tr('Active'), closed: tr('Closed') };
 const sundayOf = (d) => addDays(d, -parse(d).getDay());
-Object.assign(state, { topics: [], wsWeek: sundayOf(today()), wsFilter: 'all', notes: {}, noteSeen: store.get('noteSeen', {}) });
+Object.assign(state, { topics: [], wsFilter: 'all', wsExpanded: new Set(), notes: {}, noteSeen: store.get('noteSeen', {}) });
 
 async function loadWorkstream() {
   await Promise.all([loadTasks(), loadNote('briefing')]);
@@ -1295,7 +1335,7 @@ function onNoteChanged(key) {
 function refreshBriefingNotes() {
   if (document.hidden || !$('#login').hidden) return;
   loadNote('daily');
-  if (state.page === 1) loadNote('briefing');
+  if (state.page === 1) { loadNote('briefing'); loadTasks(); }
 }
 setInterval(refreshBriefingNotes, 30_000);
 
@@ -1346,111 +1386,55 @@ function notePreview(text, lines = 2) {
     .filter(Boolean).slice(0, lines).join(' · ');
 }
 
+const taskOrder = (a, b) => `${a.due?.date || '9999'}T${a.due?.time || '23:59'}`.localeCompare(`${b.due?.date || '9999'}T${b.due?.time || '23:59'}`) || (a.createdAt || 0) - (b.createdAt || 0);
+function cardDue(due, overdue = false) {
+  if (!due) return `<span class="card-due undated">${tr('No date')}</span>`;
+  const label = due.date === today() ? tr('Today') : due.date === addDays(today(), 1) ? tr('Tomorrow') : fmt(due.date, { month: 'short', day: 'numeric' });
+  return `<span class="card-due ${overdue ? 'late' : due.date === today() ? 'today' : ''}">${overdue ? `${tr('Overdue')} · ` : ''}${label}${due.time ? ` ${due.time}` : ''}</span>`;
+}
 function renderWorkstream() {
-  const ws = $('#workstream');
-  if (!ws || ws.hidden && state.page !== 1) { /* 그려 두면 스와이프할 때 바로 보임 */ }
-  // Claude 브리핑 카드
-  const bn = state.notes.briefing;
-  const card = $('#wsBrief');
-  if (bn) {
-    const unseen = state.noteSeen.briefing !== bn.updatedAt;
-    card.hidden = false;
-    card.innerHTML = `<span class="cb-head">${STAR}<b>${esc(AI.name)}</b><span>${tr('Project briefing')} · ${noteTime(bn)}</span>${unseen ? '<i class="new-dot" aria-label="Updated" data-i18n-aria-label="Updated"></i>' : ''}</span>
-      <span class="cb-text">${esc(notePreview(bn.text, 3))}</span>`;
-  } else card.hidden = true;
+  const current = state.topics.filter(tp => tp.status !== 'closed');
+  const openTasks = state.tasks.filter(t => !t.done && current.some(tp => tp.id === t.topicId));
+  const dueToday = openTasks.filter(t => t.due?.date === today()).length;
+  const late = openTasks.filter(t => t.overdue).length;
+  const active = state.topics.filter(tp => tp.status === 'active').length;
+  $('#wsSummary').innerHTML = `<span>${tr('In progress')} <b>${active}</b></span>${dueToday ? `<span>${tr('Due today')} <b>${dueToday}</b></span>` : ''}${late ? `<span class="late">${tr('Overdue')} <b>${late}</b></span>` : ''}`;
+  $('#wsSummary').hidden = !state.topics.length;
+  const bn = state.notes.briefing, card = $('#wsBrief');
+  card.hidden = !bn;
+  if (bn) card.innerHTML = `${STAR}<span class="ws-ai-text">${esc(notePreview(bn.text, 1) || tr('Project briefing'))}</span><span class="ws-ai-open">${tr('View')} ›</span>`;
 
-  // 상태 필터
-  const cnt = (st) => state.topics.filter((t) => t.status === st).length;
+  const cnt = st => state.topics.filter(t => t.status === st).length;
   $('#wsFilter').innerHTML = [['all', tr('All'), state.topics.length], ['active', tr('Active'), cnt('active')], ['planned', tr('Planned'), cnt('planned')], ['closed', tr('Closed'), cnt('closed')]]
     .map(([k, l, n]) => `<button data-f="${k}" aria-selected="${state.wsFilter === k}">${l}${n && k !== 'all' ? `<span>${n}</span>` : ''}</button>`).join('');
-  $$('#wsFilter button').forEach((b) => b.addEventListener('click', () => { state.wsFilter = b.dataset.f; renderWorkstream(); }));
-
-  renderWeek();
-
-  // 미분류
-  const un = unsortedTasks();
-  const ur = $('#wsUnsorted');
+  $$('#wsFilter button').forEach(b => b.onclick = () => { state.wsFilter = b.dataset.f; renderWorkstream(); });
+  const un = unsortedTasks(), ur = $('#wsUnsorted');
   ur.hidden = !un.length;
-  ur.innerHTML = `<span data-i18n="Unsorted">Unsorted</span><b>${un.length}</b><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>`;
-
-  // 주제 목록
-  const shown = state.topics.filter((t) => state.wsFilter === 'all' || t.status === state.wsFilter)
+  ur.innerHTML = `<span>${tr('Unsorted')}</span><b>${un.length}</b><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>`;
+  const shown = state.topics.filter(t => state.wsFilter === 'all' || t.status === state.wsFilter)
     .sort((a, b) => ['active', 'planned', 'closed'].indexOf(a.status) - ['active', 'planned', 'closed'].indexOf(b.status));
-  $('#wsTopics').innerHTML = shown.length ? shown.map((tp) => {
-    const st = topicStats(tp);
-    const pct = st.total ? Math.round(st.done / st.total * 100) : 0;
-    return `<button class="topic-card ${tp.status}" data-id="${tp.id}" style="--c:${tp.color}">
-      <span class="r1"><i class="dot"></i><b>${esc(tp.name)}</b><span class="tagc">[${esc(tp.tag)}]</span><span class="pill p-${tp.status}">${STATUS_LABEL[tp.status]}</span></span>
-      <span class="prog"><i style="width:${pct}%"></i></span>
-      <span class="meta"><span>${locale() === 'ko-KR' ? `${st.total}개 중 ${st.done}개 완료` : `${st.done} of ${st.total} done`}</span>${st.next ? `<span>${tr('Next')} <b>${esc(st.next.title)} ${ddLabel(st.next)}</b></span>` : tp.target ? `<span>${tr('Target')} ${fmt(tp.target, { month: 'short', day: 'numeric' })}</span>` : ''}</span>
-    </button>`;
+  $('#wsTopics').innerHTML = shown.length ? shown.map(tp => {
+    const st = topicStats(tp), pending = [...st.open].sort(taskOrder);
+    const expanded = state.wsExpanded.has(tp.id), rows = expanded ? pending : pending.slice(0, 2);
+    const next = pending.find(t => t.due);
+    const nearest = tp.target && (!next || tp.target < next.due.date) ? { date: tp.target } : next?.due;
+    const overdue = nearest && (nearest.date < today() || (next?.due === nearest && next.overdue));
+    return `<article class="project-card ${tp.status}" style="--c:${tp.color}" data-project="${tp.id}">
+      <button class="project-card-head" data-open-topic="${tp.id}"><i class="dot"></i><b>${esc(tp.name)}</b>${nearest ? cardDue(nearest, overdue) : ''}<span class="chevron">›</span></button>
+      <div class="project-progress"><span class="prog" role="progressbar" aria-label="${esc(tp.name)} ${tr('Progress')}" aria-valuemin="0" aria-valuemax="${Math.max(st.total, 1)}" aria-valuenow="${st.done}"><i style="width:${st.total ? st.done / st.total * 100 : 0}%"></i></span><span>${st.done}/${st.total} ${tr('Done')}${tp.status !== 'active' ? ` · ${STATUS_LABEL[tp.status]}` : ''}</span></div>
+      <ul class="project-task-list">${rows.map(t => `<li><button class="project-check" data-complete="${t.id}" aria-label="${esc(t.title)} · ${tr('Mark done')}"><span></span></button><button class="project-task-title" data-open-task="${t.id}">${esc(t.title)}</button>${cardDue(t.due, t.overdue)}</li>`).join('')}</ul>
+      ${!pending.length && st.total ? `<p class="card-all-done">${tr('All done')}</p>` : ''}
+      <div class="project-card-foot">${pending.length > 2 ? `<button data-expand="${tp.id}" aria-expanded="${expanded}">${expanded ? tr('Show less') : locale() === 'ko-KR' ? `할 일 ${pending.length - 2}개 더 보기` : `${pending.length - 2} more tasks`} <span>${expanded ? '⌃' : '⌄'}</span></button>` : '<span></span>'}<button class="project-add-task" data-add-task="${tp.id}" aria-label="${esc(tp.name)} · ${tr('Add item')}">${ICON.plus}<span>${tr('Add item')}</span></button></div>
+    </article>`;
   }).join('') : `<button class="add-inline" id="wsFirst">${ICON.plus}${tr('New topic')}</button>`;
-  $$('.topic-card').forEach((b) => b.addEventListener('click', () => openTopic(state.topics.find((t) => t.id === b.dataset.id))));
+  $$('[data-open-topic]').forEach(b => b.onclick = () => openTopic(state.topics.find(t => t.id === b.dataset.openTopic)));
+  $$('[data-open-task]').forEach(b => b.onclick = () => openTask(state.tasks.find(t => t.id === b.dataset.openTask)));
+  $$('[data-complete]').forEach(b => b.onclick = () => toggleDone(state.tasks.find(t => t.id === b.dataset.complete)));
+  $$('[data-expand]').forEach(b => b.onclick = () => { const id = b.dataset.expand; if (state.wsExpanded.has(id)) state.wsExpanded.delete(id); else state.wsExpanded.add(id); renderWorkstream(); });
+  $$('[data-add-task]').forEach(b => b.onclick = () => openTaskEditor(null, { topicId: b.dataset.addTask }));
   $('#wsFirst')?.addEventListener('click', () => openTopicEditor(null));
 }
 
-async function renderWeek() {
-  const w0 = state.wsWeek, w6 = addDays(w0, 6), t0 = today();
-  $('#wsRange').textContent = `${fmt(w0, { month: 'short', day: 'numeric' })} – ${parse(w0).getMonth() === parse(w6).getMonth() ? parse(w6).getDate() : fmt(w6, { month: 'short', day: 'numeric' })}`;
-  $('#wsThisWeek').hidden = w0 === sundayOf(t0);
-  $('#wsDays').innerHTML = [...Array(7)].map((_, i) => { const d = addDays(w0, i); return `<div class="${d === t0 ? 'today' : ''}">${(locale() === 'ko-KR' ? '일월화수목금토' : 'SMTWTFS')[i]}<b>${parse(d).getDate()}</b></div>`; }).join('');
-  const todayIdx = diffDays(w0, t0);
-  const vlines = [...Array(7)].map((_, i) => `<i class="${i === todayIdx ? 't' : ''}"></i>`).join('');
-
-  let events = [];
-  try { events = visible(await fetchRange(w0, w6)); } catch { /* 일정 없이 표시 */ }
-  if (state.wsWeek !== w0) return;
-
-  const topics = state.topics.filter((t) => (state.wsFilter === 'all' ? t.status !== 'closed' : t.status === state.wsFilter));
-  const col = (d) => Math.max(0, Math.min(6, diffDays(w0, d)));
-  const lanes = topics.map((tp) => {
-    const items = [];
-    for (const t of topicTasks(tp.id)) {
-      if (!t.due) continue;
-      const e = t.due.date, s = t.start && t.start <= e ? t.start : e;
-      if (e < w0 || s > w6) continue;
-      items.push({ kind: 'task', t, s, e });
-    }
-    for (const ev of events) {
-      if (eventTopic(ev)?.id !== tp.id) continue;
-      items.push({ kind: 'event', ev, s: ev.startDate, e: ev.endDate });
-    }
-    // 겹치지 않게 줄 나누기
-    items.sort((a, b) => a.s.localeCompare(b.s) || b.e.localeCompare(a.e));
-    const rowEnds = [];
-    for (const it of items) {
-      let r = rowEnds.findIndex((end) => end < it.s);
-      if (r < 0) { r = rowEnds.length; rowEnds.push(it.e); } else rowEnds[r] = it.e;
-      it.row = r + 1;
-    }
-    return { tp, items };
-  }).filter((l) => l.items.length || l.tp.status === 'active');
-
-  const bar = (it, i) => {
-    const before = it.s < w0, after = it.e > w6;
-    const gc = `grid-column:${col(it.s) + 1}/${col(it.e) + 2};grid-row:${it.row}`;
-    if (it.kind === 'event') {
-      const title = it.ev.title.replace(titleTagRe(it.tp?.tag || ''), '');
-      return `<button class="ws-ev" data-ev="${i}" style="${gc}">${esc(title)}</button>`;
-    }
-    const t = it.t;
-    const flag = !t.done && !after && t.dday !== null && t.dday <= 7 ? `<span class="flag">${ddLabel(t)}</span>` : '';
-    return `<button class="ws-bar ${t.done ? 'done' : ''} ${before ? 'from' : ''} ${after ? 'cont' : ''}" data-t="${t.id}" style="${gc}">
-      <span>${esc(t.title)}${after ? ` → ${fmt(t.due.date, { month: 'numeric', day: 'numeric' })}` : ''}</span>${flag}</button>`;
-  };
-  const evList = [];
-  $('#wsBoard').innerHTML = `<div class="vlines">${vlines}</div>` + (lanes.length ? lanes.map(({ tp, items }) => `
-    <div class="lane" style="--c:${tp.color}">
-      <div class="lane-h"><i class="dot"></i>${esc(tp.name)}<span class="tagc">[${esc(tp.tag)}]</span></div>
-      <div class="rows">${items.length ? items.map((it) => { if (it.kind === 'event') { it.tp = tp; evList.push(it.ev); return bar(it, evList.length - 1); } return bar(it); }).join('') : '<span class="lane-empty">—</span>'}</div>
-    </div>`).join('') : '<p class="ws-none" data-i18n="No project tasks this week">No project tasks this week</p>');
-  $$('#wsBoard .ws-bar').forEach((b) => b.addEventListener('click', () => { const t = state.tasks.find((x) => x.id === b.dataset.t); if (t) openTask(t); }));
-  $$('#wsBoard .ws-ev').forEach((b) => b.addEventListener('click', () => openDetail(evList[+b.dataset.ev])));
-}
-
-$('#wsPrev').addEventListener('click', () => { state.wsWeek = addDays(state.wsWeek, -7); renderWeek(); });
-$('#wsNext').addEventListener('click', () => { state.wsWeek = addDays(state.wsWeek, 7); renderWeek(); });
-$('#wsThisWeek').addEventListener('click', () => { state.wsWeek = sundayOf(today()); renderWeek(); });
 $('#wsAdd').addEventListener('click', () => openTopicEditor(null));
 $('#wsBrief').addEventListener('click', () => openNote('briefing'));
 $('#wsUnsorted').addEventListener('click', openUnsorted);

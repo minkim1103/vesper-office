@@ -1,6 +1,8 @@
 export const messages = {
   'Sign in': '로그인', Today: '오늘', Tomorrow: '내일', Yesterday: '어제', Month: '월', List: '목록', Demo: '데모',
-  'Load more': '더 보기', Workstream: '프로젝트', 'This week': '이번 주', Topics: '프로젝트', Tasks: '할 일', Password: '비밀번호',
+  'Due today': '오늘 마감', View: '보기', 'All done': '모두 완료', 'Show less': '접기',
+  'Search events': '일정 검색', 'No search results': '검색 결과가 없습니다', 'Search wider': '검색 범위 넓히기',
+  'Load more': '더 보기', Workstream: 'Workstream', 'This week': '이번 주', Topics: '프로젝트', Tasks: '할 일', Password: '비밀번호',
   'Go to today': '오늘로 이동', Briefing: '브리핑', Sync: '동기화', Calendars: '캘린더', Important: '중요', Search: '검색', Day: '하루 일정',
   'New project': '새 프로젝트', 'Previous week': '이전 주', 'Next week': '다음 주', Add: '추가', 'No events': '일정이 없습니다', Close: '닫기',
   Delete: '삭제', Edit: '수정', 'Delete event': '일정 삭제', Cancel: '취소', 'This event only': '이 일정만', 'All events': '모든 반복 일정',
