@@ -1,12 +1,26 @@
 {
-  "name": "vesper",
-  "version": "2.3.6",
+  "name": "@vesper/core",
+  "version": "3.0.0",
   "private": true,
   "description": "iCloud 개인 비서 · Claude/ChatGPT MCP · GPT Actions · 외부 AI 브리핑",
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node dev.js",
-    "test": "node test/run.js && node test/google.js && node test/spaces.js && node test/workstream.js && node test/assistant.js && node test/briefing-style.js && node test/search.js && node test/paging.js && node test/fonts.js"
+    "test": "node scripts/test.mjs run google spaces workstream assistant briefing-style search paging fonts",
+    "build": "node scripts/test.mjs run google spaces workstream assistant briefing-style search paging fonts"
+  },
+  "files": [
+    "src",
+    "public/shared",
+    "public/search.js",
+    "public/fonts/v1",
+    "scripts/test.mjs"
+  ],
+  "exports": {
+    "./*": "./src/*.js",
+    "./web/*": "./public/shared/*.js"
   }
 }

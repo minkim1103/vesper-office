@@ -23,6 +23,7 @@ const listeners = {}, data = new Map();
 let requests = 0, offline = false;
 const cache = { match: async req => data.get(req.url)?.clone(), put: async (req, res) => { data.set(req.url, res); } };
 const context = vm.createContext({
+  importScripts: () => vm.runInContext(readFileSync(new URL('../public/shared/font-cache.js',import.meta.url),'utf8'),context),
   self: { addEventListener: (name, fn) => { listeners[name] = fn; } },
   URL, location: { origin: 'https://vesper.example' },
   caches: { open: async () => cache },

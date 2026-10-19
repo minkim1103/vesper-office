@@ -3,8 +3,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 // Run the page controller with a deterministic clock and minimal layout adapter.
 // This verifies interrupted gestures without depending on a physical touch screen.
-const source = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
-const block = source.slice(source.indexOf('const MINP ='), source.indexOf("$('#spAdd').addEventListener"));
+const block = readFileSync(new URL('../public/shared/pager.js',import.meta.url),'utf8').replace('export function createPager','function createPager') + `\ncreatePager({state,$,vw,view,pt, pageEls:()=>[[$('#app'),$('#dayPanel')],[$('#workstream')],[$('#spaces')]]});`;
 const events = {}, frames = new Map(), timers = new Map();
 let sequence = 0, width = 390;
 const element = (hidden = false) => ({ hidden, style: {}, scrollTop: 0, getBoundingClientRect: () => ({ width }) });
@@ -23,6 +22,7 @@ const context = vm.createContext({
   getComputedStyle: el => ({ transform: el.style.transform || 'none' }),
   DOMMatrixReadOnly: class { constructor(value) { this.m41 = Number(value?.match(/translate3d\(([-.\d]+)/)?.[1] || 0); } },
 });
+context.pt = t => ({x:t.clientX,y:t.clientY});
 vm.runInContext(block, context);
 const emit = (name, event = {}) => events[name]?.forEach(fn => fn(event));
 const finish = () => { const pending = [...timers.values()]; timers.clear(); pending.forEach(fn => fn()); };

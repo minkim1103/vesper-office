@@ -1,9 +1,12 @@
 // 모든 설정은 환경변수로 받습니다. (Vercel → Project → Settings → Environment Variables)
 import crypto from 'node:crypto';
+import { applicationProfile } from './profile.js';
+const profile = applicationProfile();
 
 const env = process.env;
 
 export const config = {
+  profile,
   // iCloud 계정 (둘 다 비어 있으면 '데모 모드'로 동작)
   icloudUser: env.ICLOUD_USERNAME || '',          // Apple ID 이메일
   icloudPassword: env.ICLOUD_APP_PASSWORD || '',  // appleid.apple.com 에서 만든 "앱 암호"
@@ -20,7 +23,7 @@ export const config = {
   googleRefreshToken: env.GOOGLE_REFRESH_TOKEN || '',
 
   // Spaces(할 일)를 저장하는 iCloud 캘린더 이름 (없으면 자동 생성)
-  vesperCalendar: env.VESPER_CALENDAR || 'Vesper',
+  vesperCalendar: env.VESPER_CALENDAR || profile.storageCalendar,
 
   tz: env.TIMEZONE || 'Asia/Seoul',
 

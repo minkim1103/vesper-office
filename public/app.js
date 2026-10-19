@@ -1,8 +1,10 @@
+import { createPager } from './shared/pager.js';
+import { createSheets } from './shared/sheets.js';
 // Vesper — 프론트엔드 (빌드 도구 없이 바로 동작)
 import { ASSISTANTS } from './assistant.js';
 import { splitSearchRanges } from './search.js';
 import { t as tr, locale, translate, observeTranslations } from './i18n.js';
-const VERSION = '2.36';
+const VERSION = '3.0.0';
 
 /* ───────────── 도우미 ───────────── */
 const $ = (s, el = document) => el.querySelector(s);
@@ -625,66 +627,8 @@ $('#moreBtn').addEventListener('click', () => {
 });
 
 /* ───────────── 바텀 시트 ───────────── */
-let closing = null;
-/* 시트 위에 시트: 주제 → 할 일처럼 이어서 열면 아래 시트는 그대로 두고 새 시트가 위로 올라옴.
-   위 시트를 내리면 아래 시트가 다시 살아남. */
-const sheetStack = [];
-let pushNext = null, tasksVer = 0;
-/** 다음 openSheet 를 '위에 쌓기'로. reopen = 아래 시트 내용이 바뀌었을 때(할 일 완료 등) 다시 그리는 함수 */
-function stackSheet(reopen) { if (!$('#sheet').hidden && !closing) pushNext = reopen; }
-function openSheet(html) {
-  if (pushNext) {
-    // 아래 시트의 실제 DOM(이벤트 포함)을 그대로 뒤쪽 레이어로 옮겨 둠 → 다시 그리지 않으니 가벼움
-    const reopen = pushNext; pushNext = null;
-    const sh = $('#sheet'), body = $('#sheetBody');
-    const ghost = document.createElement('section');
-    ghost.className = 'sheet sheet-ghost'; ghost.setAttribute('aria-hidden', 'true');
-    ghost.innerHTML = '<div class="grabber" aria-hidden="true"></div>';
-    const keep = document.createElement('div');
-    while (body.firstChild) keep.appendChild(body.firstChild);
-    ghost.appendChild(keep);
-    sh.after(ghost); // DOM 상 뒤(검색은 위 시트가 먼저), 화면상 아래(z-index)
-    ghost.scrollTop = sh.scrollTop;
-    sheetStack.push({ reopen, ghost, keep, scroll: sh.scrollTop, ver: tasksVer });
-    body.innerHTML = html;
-    translate(body);
-    sh.style.transform = ''; sh.scrollTop = 0; sh.style.animation = '';
-    sh.classList.remove('pushin'); void sh.offsetWidth; sh.classList.add('pushin');
-    return;
-  }
-  if (closing) { clearTimeout(closing); closing = null; $('#sheet').classList.remove('closing'); $('#scrim').classList.remove('closing'); }
-  $('#sheetBody').innerHTML = html;
-  translate($('#sheetBody'));
-  $('#sheet').style.transform = '';
-  const wasOpen = !$('#sheet').hidden;
-  if (!wasOpen) $('#sheet').style.animation = '';
-  $('#scrim').hidden = false; $('#sheet').hidden = false;
-  if (!wasOpen) $('#sheet').scrollTop = 0;
-}
-function closeSheet() {
-  if ($('#sheet').hidden || closing) return;
-  $('#sheet').style.animation = ''; // 닫힘 애니메이션은 클래스로
-  if (sheetStack.length) {
-    // 위 시트만 내리고, 끝나면 아래 시트의 DOM 을 그대로 되돌림 (다시 그리지 않음)
-    const top = sheetStack.pop(), sh = $('#sheet'), body = $('#sheetBody');
-    sh.classList.remove('pushin'); sh.classList.add('closing'); // pushin 이 남아 있으면 내려가는 애니메이션이 안 먹음
-    closing = setTimeout(() => {
-      closing = null;
-      sh.style.animation = 'none'; sh.classList.remove('closing', 'pushin'); sh.style.transform = '';
-      body.replaceChildren(...top.keep.childNodes);
-      sh.scrollTop = top.scroll;
-      top.ghost.remove();
-      if (top.ver !== tasksVer) requestAnimationFrame(() => { top.reopen(); sh.scrollTop = top.scroll; }); // 그사이 데이터가 바뀌었으면 갱신
-    }, 245);
-    return;
-  }
-  $('#sheet').classList.remove('pushin'); $('#sheet').classList.add('closing'); $('#scrim').classList.add('closing');
-  closing = setTimeout(() => {
-    $('#scrim').hidden = true; $('#sheet').hidden = true; $('#sheetBody').innerHTML = ''; $('#sheet').style.transform = '';
-    $$('.sheet-ghost').forEach((g) => g.remove()); sheetStack.length = 0;
-    $('#sheet').classList.remove('closing'); $('#scrim').classList.remove('closing'); closing = null;
-  }, 220);
-}
+let tasksVer = 0;
+const {openSheet,closeSheet,stackSheet} = createSheets({$,$$, translate, getVersion:()=>tasksVer,});
 $('#scrim').addEventListener('click', closeSheet);
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
@@ -993,170 +937,13 @@ async function loadTasks() {
 
 /* ───────────── 페이지: Calendar(0) · Workstream(1) · Tasks(2) ─────────────
    좌우로 밀어서 이동. 손가락을 따라 움직이고, 놓은 속도(관성)에 따라 넘어가거나 제자리로 돌아옵니다. */
-const MINP = 0, MAXP = 2;
-const pageEls = () => [[$('#app'), $('#dayPanel')], [$('#workstream')], [$('#spaces')]]; // 배열 i 번째 = 페이지 i + MINP
 state.page = 0;
-let pageTimer = null, pageFrame = 0, pageOffset = 0, queuedOffset = 0;
-let resetPageGesture = () => {};
-const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-function cancelPageFrame() { cancelAnimationFrame(pageFrame); pageFrame = 0; }
-function queuePageOffset(offset) {
-  queuedOffset = offset;
-  if (!pageFrame) pageFrame = requestAnimationFrame(() => {
-    pageFrame = 0;
-    placePages(queuedOffset, false);
-  });
-}
-/** offset: 화면이 이동한 양(px). page × 화면너비 일 때 그 페이지가 정확히 보임 */
-function placePages(offset, animate, ms = 340) {
-  pageOffset = offset;
-  const w = vw();
-  const ease = `${ms}ms cubic-bezier(.2,.85,.25,1)`;
-  pageEls().forEach((els, i) => {
-    const x = (i + MINP) * w - offset;
-    for (const el of els) {
-      el.style.transition = animate ? `transform ${ease}` : 'none';
-      el.style.transform = `translate3d(${Math.abs(x) < 0.5 ? 0 : x}px,0,0)`;
-    }
-  });
-}
-function showPages(...idx) {
-  for (const p of idx) {
-    const el = pageEls()[p - MINP]?.[0];
-    if (el && p !== 0 && el.hidden) {
-      // Position while still hidden so a newly displayed page cannot flash at x=0.
-      el.style.transition = 'none';
-      el.style.transform = `translate3d(${p * vw() - pageOffset}px,0,0)`;
-      el.hidden = false;
-      el.getBoundingClientRect(); // Commit the start position once, outside the drag frame loop.
-    }
-  }
-}
-function hideOffPages() {
-  placePages(state.page * vw(), false);
-  pageEls().forEach((els, i) => {
-    const p = i + MINP;
-    if (p !== 0) els[0].hidden = p !== state.page;
-    for (const el of els) {
-      el.style.willChange = '';
-      // Preserve fixed calendar children once the transition has finished.
-      if (p === state.page) el.style.transform = '';
-    }
-  });
-}
-/** 손을 뗀 속도로 남은 거리를 마무리 (빠르게 튕기면 빨리, 천천히 놓으면 부드럽게) */
-function settleMs(remaining, v) {
-  const speed = Math.abs(v); // px/ms
-  if (speed < 0.3) return 360;
-  return Math.round(Math.min(420, Math.max(180, (remaining / speed) * 1.6)));
-}
-function goPage(p, { ms = 340, animate = true } = {}) {
-  p = Math.max(MINP, Math.min(MAXP, p));
-  animate = animate && !reducedMotion();
-  cancelPageFrame();
-  const prev = state.page;
-  state.page = p;
-  if (p !== prev) {
-    if (p === 1) renderWorkstream();
-    if (p === 2) { $('#spaces').scrollTop = 0; renderSpaces(); }
-  }
-  showPages(prev, p);
-  pageEls().forEach(els => els.forEach(el => { el.style.willChange = animate ? 'transform' : ''; }));
-  placePages(p * vw(), animate, ms);
-  document.body.style.overflow = p ? 'hidden' : '';
-  if (view.rot) $('#app').style.overflowY = p ? 'hidden' : '';
-  clearTimeout(pageTimer);
-  return new Promise((r) => { pageTimer = setTimeout(() => {
-    pageTimer = null; hideOffPages();
-    if (p === 0 && !$('#app').hidden) updateMonthsOnScroll();
-    if (p !== prev && p === state.page) {
-      if (p === 1) loadWorkstream().then(() => { if (state.page === 1) renderWorkstream(); });
-      if (p === 2) loadTasks();
-    }
-    r();
-  }, animate ? ms : 0); });
-}
-(() => {
-  let sx = 0, sy = 0, lastX = 0, lastT = 0, vx = 0, mode = 'off', w = 0, base = 0, off = 0;
-  resetPageGesture = () => { mode = 'off'; cancelPageFrame(); };
-  document.addEventListener('touchstart', (e) => {
-    if (mode === 'drag') goPage(state.page, { animate: false });
-    mode = 'off';
-    if ($('#app').hidden || !$('#sheet').hidden || e.touches.length > 1) return;
-    if (e.target.closest('.sp-tabs, .sp-subs, .deadlines, .ws-filter, input, textarea, select')) return; // 가로 스크롤 영역은 제외
-    const p0 = pt(e.touches[0]);
-    sx = lastX = p0.x; sy = p0.y; lastT = Date.now(); vx = 0;
-    w = vw(); base = state.page * w; off = base; mode = 'wait';
-  }, { passive: true });
-  document.addEventListener('touchmove', (e) => {
-    if (mode === 'off') return;
-    if (e.touches.length !== 1) { resetPageGesture(); goPage(state.page, { animate: false }); return; }
-    const p1 = pt(e.touches[0]);
-    const x = p1.x, dx = x - sx, dy = p1.y - sy;
-    if (mode === 'wait') {
-      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
-      if (Math.abs(dx) > Math.abs(dy) * 1.4) {
-        mode = 'drag';
-        // Continue from the current animated position if a new gesture interrupts it.
-        const selected = pageEls()[state.page][0];
-        const transform = getComputedStyle(selected).transform;
-        const matrix = new DOMMatrixReadOnly(transform === 'none' ? undefined : transform);
-        base = state.page * w - matrix.m41;
-        clearTimeout(pageTimer); pageTimer = null;
-        cancelPageFrame();
-        pageOffset = base;
-        showPages(state.page - 1, state.page + 1);
-        if (state.page === 0 && dx < 0) renderWorkstream();
-        if (state.page === 1 && dx < 0) renderSpaces();
-      } else { mode = 'off'; return; }
-    }
-    e.preventDefault();
-    const now = Date.now();
-    const inst = (x - lastX) / Math.max(1, now - lastT);
-    vx = vx * 0.6 + inst * 0.4; lastX = x; lastT = now;
-    off = base - dx;
-    // 옆 페이지까지만, 양 끝에서는 고무줄처럼
-    off = Math.max(base - w, Math.min(base + w, off));
-    if (off < MINP * w) off = MINP * w + (off - MINP * w) * 0.25;
-    if (off > MAXP * w) off = MAXP * w + (off - MAXP * w) * 0.25;
-    queuePageOffset(off);
-  }, { passive: false });
-  document.addEventListener('touchend', () => {
-    if (mode !== 'drag') { mode = 'off'; return; }
-    mode = 'off';
-    const dx = lastX - sx;
-    let target = state.page;
-    if (dx < -w * 0.3 || vx < -0.45) target = state.page + 1;
-    else if (dx > w * 0.3 || vx > 0.45) target = state.page - 1;
-    target = Math.max(MINP, Math.min(MAXP, target));
-    goPage(target, { ms: settleMs(Math.abs(target * w - off), vx) });
-  });
-  document.addEventListener('touchcancel', () => {
-    resetPageGesture(); goPage(state.page, { animate: false });
-  });
-  // One page per trackpad gesture, including its trailing momentum events.
-  let acc = 0, accTimer, wheelLocked = false;
-  window.addEventListener('wheel', (e) => {
-    if ($('#app').hidden || !$('#sheet').hidden || Math.abs(e.deltaX) < Math.abs(e.deltaY)) return;
-    if (e.target.closest('.sp-tabs, .sp-subs, .deadlines, .ws-filter, input, textarea, select')) return;
-    e.preventDefault();
-    clearTimeout(accTimer); accTimer = setTimeout(() => { acc = 0; wheelLocked = false; }, 220);
-    if (wheelLocked || pageTimer) return;
-    acc += e.deltaX;
-    if (Math.abs(acc) > 90) {
-      wheelLocked = true; goPage(state.page + Math.sign(acc)); acc = 0;
-    }
-  }, { passive: false });
-})();
-function realignPages() {
-  resetPageGesture();
-  goPage(state.page, { animate: false });
-}
-window.addEventListener('resize', realignPages);
-window.addEventListener('pageshow', realignPages);
-window.addEventListener('pagehide', realignPages);
-document.addEventListener('visibilitychange', () => { if (document.hidden) realignPages(); });
-hideOffPages();
+const {goPage} = createPager({state,$,vw,view,pt,
+  pageEls:()=>[[$('#app'),$('#dayPanel')],[$('#workstream')],[$('#spaces')]],
+  renderPage(p) { if(p===1) renderWorkstream(); if(p===2) renderSpaces(); },
+  async loadPage(p) { if(p===1) {await loadWorkstream(); if(state.page===1) renderWorkstream();} if(p===2) loadTasks(); },
+  onSettled(p) {if(p===0 && !$('#app').hidden) updateMonthsOnScroll();},
+});
 $('#spAdd').addEventListener('click', () => openTaskEditor(null));
 
 function fmtDue(due) {

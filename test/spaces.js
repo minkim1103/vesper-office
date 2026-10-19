@@ -1,5 +1,6 @@
 // Spaces 테스트: iCloud 'Vesper' 캘린더에 할 일 저장 (데모 저장소로 검증)
 import assert from 'node:assert/strict';
+import {config} from '../src/config.js';
 import * as svc from '../src/service.js';
 import * as tasks from '../src/tasks.js';
 import { handleMcp } from '../src/mcp.js';
@@ -18,7 +19,7 @@ const areas = await call('list_areas');
 assert.deepEqual(areas.map((a) => a.name), ['업무', '개인', '집']);
 assert.deepEqual(areas[0].subs, ['회의', '문서', '보고', '프로젝트']);
 const cats = await svc.listCategories({ includeVesper: true });
-assert.ok(cats.some((c) => c.vesper && c.name === 'Vesper'));
+assert.ok(cats.some((c) => c.vesper && c.name === config.vesperCalendar));
 assert.ok(!(await svc.listCategories()).some((c) => c.vesper));
 ok('Vesper 캘린더 자동 생성, 기본 카테고리, 일반 캘린더 목록에서는 숨김');
 

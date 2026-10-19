@@ -72,8 +72,8 @@ export default async function handler(req, res) {
       res.setHeader('Cache-Control', 'no-store');
       return res.end(JSON.stringify(manifest(q.assistant)));
     }
-    if (path === '/api/actions/openapi.json' && method === 'GET') return send(res, 200, actionsSchema(origin(req)));
-    if (path.startsWith('/api/actions/')) {
+    if (config.profile.actions && path === '/api/actions/openapi.json' && method === 'GET') return send(res, 200, actionsSchema(origin(req)));
+    if (config.profile.actions && path.startsWith('/api/actions/')) {
       const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
       if (!/^Bearer\s+/i.test(req.headers.authorization || '') || !checkToken(token)) return send(res, 401, { error: 'unauthorized' });
       if (path === '/api/actions/briefing') {
@@ -141,7 +141,10 @@ export default async function handler(req, res) {
 <a class="btn" href="/">Back to Vesper</a>`);
     }
 
+    const extension = { req, res, path, method, q, send, readBody, origin };
+    if (await config.profile.publicRoute?.(extension)) return;
     if (!isAuthed(req)) return send(res, 401, { error: '로그인이 필요합니다.' });
+    if (await config.profile.authedRoute?.(extension)) return;
 
     if (path === '/api/briefs') {
       if (method === 'GET') return send(res, 200, await tasks.listBriefs());

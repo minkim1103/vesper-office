@@ -13,11 +13,7 @@ const b64 = (s) => Buffer.from(s).toString('base64url');
 const unb64 = (s) => Buffer.from(String(s), 'base64url').toString();
 const CONFIG_UID = 'vesper-config';
 
-const DEFAULT_AREAS = [
-  { name: '업무', color: '#6A9BCC', subs: ['회의', '문서', '보고', '프로젝트'] },
-  { name: '개인', color: '#D97790', subs: [] },
-  { name: '집', color: '#7CA25A', subs: [] },
-];
+const DEFAULT_AREAS = config.profile.areas;
 const PALETTE = ['#D97757', '#E3A13B', '#4C9A8F', '#8F7BC8', '#C46A9A', '#8F8D85'];
 
 /* ───────────── Vesper 캘린더 ───────────── */
@@ -261,7 +257,7 @@ export async function editTopic(op, a = {}) {
 /* ───────────── 브리핑 · 노트 ───────────── */
 
 // briefing = Workstream 프로젝트 브리핑, daily = 캘린더 일정 브리핑, 그 밖 = 주제 id
-const FIXED_NOTES = { briefing: ['vesper-briefing', 'Project briefing'], daily: ['vesper-daily', 'Daily briefing'], prefs: ['vesper-prefs', 'Assistant notes'], 'briefing-style': ['vesper-briefing-style', 'Personal briefing style'] };
+const FIXED_NOTES = { briefing: ['vesper-briefing', 'Project briefing'], daily: ['vesper-daily', 'Daily briefing'], prefs: ['vesper-prefs', 'Assistant notes'], 'briefing-style': ['vesper-briefing-style', 'Personal briefing style'], ...(config.profile.noteTypes || {}) };
 const isTaskKey = (key) => /^(task|ev)-[A-Za-z0-9-]{4,80}$/.test(String(key || '')); // 할 일 노트·일정 브리핑 노트
 const noteUid = (key) => (FIXED_NOTES[key] ? FIXED_NOTES[key][0] : isTaskKey(key) ? `vesper-${key}` : `vesper-note-${key}`);
 
@@ -584,10 +580,11 @@ export async function addTask(raw) {
   const t = { uid: crypto.randomUUID().toUpperCase(), title: '', area: areas[0]?.name || '', tag: null, notes: '', due: null, alarms: [], done: false, doneAt: null, createdAt: Date.now(), source: raw.source || 'app', topic: null, start: null, prefixTag: null };
   const input = { ...raw };
   // 프로젝트에 넣는 할 일은 카테고리를 안 정했으면 업무 › 프로젝트
-  const research = areas.find((x) => (x.subs || []).includes('프로젝트')) || areas.find((x) => x.name === '업무');
+  const topicTag = config.profile.topicTag, topicArea = config.profile.topicArea;
+  const research = areas.find((x) => (x.subs || []).includes(topicTag)) || areas.find((x) => x.name === topicArea);
   const hasTopic = (raw.topic && raw.topic !== 'none') || /^\[[^\]]{1,20}\]/.test(String(raw.title || ''));
   if ((input.area ?? input.areaId) === undefined) input.area = hasTopic && research ? research.name : areas[0]?.name;
-  if (hasTopic && research && input.tag === undefined && findArea(areas, input.area)?.name === research.name && (research.subs || []).includes('프로젝트')) input.tag = '프로젝트';
+  if (hasTopic && research && input.tag === undefined && findArea(areas, input.area)?.name === research.name && (research.subs || []).includes(topicTag)) input.tag = topicTag;
   await applyInput(t, input);
   if (!t.title) throw fail('제목을 입력하세요.');
   if (raw.alarms === undefined) t.alarms = defaultAlarms(t.due);
@@ -677,3 +674,6 @@ export async function setBrief(eventId, { on = true, title = '', date = '', note
   await saveDoc(BRIEFS_UID, 'Event briefings', doc, prev);
   return doc.items[eventId] || null;
 }
+
+// Generic calendar-backed documents used by trusted private extensions.
+export { loadDoc as loadDocument, saveDoc as saveDocument };

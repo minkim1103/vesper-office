@@ -6,7 +6,7 @@ import { config } from './config.js';
 
 const SUPPORTED = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
 
-const INSTRUCTIONS = `브리핑 작성 시 get_briefing의 briefingStyle을 매번 읽으세요. 현재 사용자의 명시적 요청 > personalInstructions > defaultInstructions 순서로 적용하고 feedbackNotes와 get_note(daily)의 이전 제안을 참고하세요. 가이드의 예시는 실제 일정이 아닙니다. horizon은 향후 일정 자료이며 빈 시간·이동 시간·준비 소요가 확인되지 않으면 추정임을 표시하세요. 브리핑 중 일정·할 일을 임의 변경하지 마세요. 사용자가 스타일 변경을 명시하면 get_briefing_style로 기존 개인 지시를 읽고 필요한 부분만 고쳐 save_briefing_style로 저장하세요. 다른 선호는 유지합니다.
+const DEFAULT_INSTRUCTIONS = `브리핑 작성 시 get_briefing의 briefingStyle을 매번 읽으세요. 현재 사용자의 명시적 요청 > personalInstructions > defaultInstructions 순서로 적용하고 feedbackNotes와 get_note(daily)의 이전 제안을 참고하세요. 가이드의 예시는 실제 일정이 아닙니다. horizon은 향후 일정 자료이며 빈 시간·이동 시간·준비 소요가 확인되지 않으면 추정임을 표시하세요. 브리핑 중 일정·할 일을 임의 변경하지 마세요. 사용자가 스타일 변경을 명시하면 get_briefing_style로 기존 개인 지시를 읽고 필요한 부분만 고쳐 save_briefing_style로 저장하세요. 다른 선호는 유지합니다.
 예약 생성·수정·실행은 연결된 AI 서비스에서 관리합니다. 예약 실행 때마다 최신 자료를 조회하고, 일정 브리핑은 save_daily_briefing, 업무 브리핑은 save_briefing으로 마크다운 전문을 저장하세요. 저장하지 않고 대화에만 답하면 웹사이트에 반영되지 않습니다.
 이 서버는 사용자의 개인 캘린더입니다. 모든 일정은 사용자의 iCloud(애플 캘린더)와, 연결돼 있다면 Google 캘린더와도 양방향으로 동기화됩니다.
 - 시간대: ${config.tz}. 날짜는 YYYY-MM-DD, 시간은 HH:mm(24시간)으로 주고받습니다. "오늘/내일/다음 주 화요일" 같은 표현은 get_today 로 오늘 날짜를 확인한 뒤 계산하세요.
@@ -62,6 +62,8 @@ const eventProps = {
   recurrence: recurrenceSchema,
 };
 
+const INSTRUCTIONS = config.profile.instructions?.({ tz: config.tz, defaultInstructions: DEFAULT_INSTRUCTIONS }) || DEFAULT_INSTRUCTIONS;
+
 const TOOLS = [
   {
     name: 'get_today',
@@ -115,7 +117,7 @@ const TOOLS = [
       return {
         text: b.text, today: b.today.map(slim), deadlines: b.deadlines.map((e) => ({ ...slim(e), dday: e.dday })), tomorrow: b.tomorrow.map(slim), conflicts: b.conflicts,
         tasks: { overdue: b.tasks.overdue.map(slimTask), upcoming: b.tasks.upcoming.map(slimTask), alarmsToday: b.tasks.alarmsToday.map(slimTask) },
-        research: b.research, horizon: b.horizon.map(slim), planningTasks: b.planningTasks.map(slimTask), briefingStyle: b.briefingStyle,
+        research: b.research, ...(config.profile.legacyBriefing ? {} : {horizon: b.horizon.map(slim), planningTasks: b.planningTasks.map(slimTask), briefingStyle: b.briefingStyle}),
       };
     },
   },
@@ -459,6 +461,17 @@ function slim(e) {
   if (e.alerts?.length) o.alerts = e.alerts;
   if (e.recurring) { o.recurrence = e.recurrence; o.occurrence = e.occurrence; }
   return o;
+}
+
+// Private features register tools without entering the public package.
+for(let i=TOOLS.length-1;i>=0;i--) if(config.profile.omitTools?.includes(TOOLS[i].name)) TOOLS.splice(i,1);
+for (const tool of config.profile.extraTools || []) {
+  if (TOOLS.some(t => t.name === tool.name)) throw new Error(`Duplicate tool: ${tool.name}`);
+  TOOLS.push(tool);
+}
+for (const tool of TOOLS) {
+  const override = config.profile.toolOverrides?.[tool.name];
+  if (override) Object.assign(tool, override);
 }
 
 const ok = (id, result) => ({ jsonrpc: '2.0', id, result });

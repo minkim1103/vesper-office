@@ -50,7 +50,7 @@ export async function listCategories({ includeHidden = false, includeVesper = fa
     })),
   ];
   return all
-    .filter((c) => includeVesper || !c.vesper)
+    .filter((c) => includeVesper || (!c.vesper && !['Vesper', 'Vesper Office'].includes(c.name)))
     .filter((c) => includeHidden || !config.hiddenCalendars.includes(c.name));
 }
 
@@ -432,9 +432,11 @@ export async function briefing({ date, days = 14 } = {}) {
     date: today, generatedAt: `${now.y}-${String(now.m).padStart(2, '0')}-${String(now.d).padStart(2, '0')} ${String(now.hh).padStart(2, '0')}:${String(now.mm).padStart(2, '0')}`,
     today: todays, tomorrow, deadlines: uniqDeadlines.map((e) => ({ ...e, dday: dday(e.startDate, today) })),
     conflicts, text, tasks: tk, research,
-    horizon: events.filter(e => e.endDate >= today),
-    planningTasks: (await tasksForBriefing(today, Math.max(days, 14))).upcoming,
-    briefingStyle: await getBriefingStyle(),
+    ...(config.profile.legacyBriefing ? {} : {
+      horizon: events.filter(e => e.endDate >= today),
+      planningTasks: (await tasksForBriefing(today, Math.max(days, 14))).upcoming,
+      briefingStyle: await getBriefingStyle(),
+    }),
   };
 }
 

@@ -1,4 +1,4 @@
-# Vesper — 개인 일정 비서 (v2.33)
+# Vesper Office — 개인 일정 비서 (v3.0.0)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fminkim1103%2Fvesper-office&project-name=vesper-office&repository-name=vesper-office&env=ICLOUD_USERNAME%2CICLOUD_APP_PASSWORD%2CAPP_PASSWORD%2CMCP_TOKEN%2CASSISTANT%2CTIMEZONE&envDefaults=%7B%22ASSISTANT%22%3A%22chatgpt%22%2C%22TIMEZONE%22%3A%22Asia%2FSeoul%22%7D&envDescription=%EA%B0%9C%EC%9D%B8+iCloud+%EC%97%B0%EA%B2%B0+%EC%A0%95%EB%B3%B4%EC%99%80+%EC%9B%B9+%EB%A1%9C%EA%B7%B8%EC%9D%B8+%EC%95%94%ED%98%B8%2C+%EC%A7%81%EC%A0%91+%EC%83%9D%EC%84%B1%ED%95%9C+MCP+%ED%86%A0%ED%81%B0%EC%9D%84+%EC%9E%85%EB%A0%A5%ED%95%98%EC%84%B8%EC%9A%94.&envLink=https%3A%2F%2Fgithub.com%2Fminkim1103%2Fvesper-office%2Fblob%2Fmain%2Fdocs%2FPERSONAL_SETUP.md)
 
@@ -23,7 +23,7 @@
 
 **주요 기능**
 - **일정**: 추가·수정·삭제, 반복 일정, 중요 일정(D-day 강조, 아이폰 제목 앞 `[중요]`)
-- **Tasks**: 할 일은 iCloud 'Vesper' 캘린더에 저장되고, 알람은 아이폰 기본 알림으로 울립니다. 카테고리는 AI에게 말로 바꿀 수 있습니다.
+- **Tasks**: 할 일은 iCloud 'Vesper Office' 캘린더에 저장되고, 알람은 아이폰 기본 알림으로 울립니다. 카테고리는 AI에게 말로 바꿀 수 있습니다.
 - **Workstream**: 프로젝트에 연결된 할 일은 아이폰 제목 앞에 `[태그]`가 붙습니다. 아이폰에서 제목 앞에 `[태그]`를 붙여도 그 프로젝트로 연결됩니다.
 - **AI 노트**: 프로젝트 노트, 할 일별 노트(자료 조사 등), 일정 브리핑을 저장합니다.
   - 일정 편집에서 "✦ briefing"을 켜고 메모를 적어 두면, AI가 조사해서 일정 상세 창에 보여 줍니다.
@@ -82,7 +82,7 @@ src/config.js     환경변수 설정
 src/caldav.js     iCloud CalDAV 통신
 src/ical.js       iCalendar 읽기/쓰기, 반복 일정 계산
 src/service.js    일정 로직 (웹앱·AI 공용), 브리핑 데이터
-src/tasks.js      Tasks · Workstream · AI 노트 · 일정 브리핑 (iCloud 'Vesper' 캘린더에 저장)
+src/tasks.js      Tasks · Workstream · AI 노트 · 일정 브리핑 (iCloud 'Vesper Office' 캘린더에 저장)
 src/google.js     Google 캘린더 (선택)
 src/mcp.js        AI 연결 (MCP 도구, Claude·ChatGPT 공용)
 src/handler.js    API 라우터 / 로그인
@@ -96,8 +96,14 @@ test/             테스트
 
 - 일정의 브리핑 선택은 AI 이름 없이 **브리핑**으로 표시합니다. 연결된 Claude 또는 ChatGPT가 같은 요청을 처리합니다.
 - 프로젝트에서 할 일을 저장하거나 취소하면 프로젝트 상세로 돌아갑니다. 마감은 선택 사항이며, 기존 마감 날짜·시각도 지울 수 있습니다.
-- 데모는 프로세스 메모리 저장이므로 재시작 또는 Vercel 인스턴스 교체 시 사라질 수 있습니다. iCloud 연결 시 프로젝트 설정·할 일·노트는 iCloud의 Vesper 캘린더에 저장됩니다. 실제 계정 연결 후 저장·재조회 검증을 진행하세요.
+- 데모는 프로세스 메모리 저장이므로 재시작 또는 Vercel 인스턴스 교체 시 사라질 수 있습니다. iCloud 연결 시 프로젝트 설정·할 일·노트는 iCloud의 Vesper Office 캘린더에 저장됩니다. 실제 계정 연결 후 저장·재조회 검증을 진행하세요.
 
 ## 기본 브리핑과 개인 맞춤
 
 [기본 가이드](docs/BRIEFING_STYLE.md)는 모든 사용자에게 공통으로 제공됩니다. `get_briefing`과 `get_briefing_style`이 기본 가이드·개인 지시·피드백을 전달합니다. 사용자가 스타일을 바꾸라고 요청하면 AI가 `save_briefing_style`로 본인의 iCloud에만 저장합니다. 현재 명시적 요청 → 개인 지시 → 기본 가이드 순서이며, 기본 가이드는 변경하지 않습니다. 실제 문장 생성은 연결된 AI가 수행합니다.
+
+## 공통 엔진과 앱별 배포
+
+이 공개 저장소는 Office 앱과 `@vesper/core` 공통 엔진을 함께 제공합니다. 다른 앱은 Git 커밋으로 엔진 버전을 고정하고, 자체 프로필·UI·전용 기능을 별도 저장소에 유지할 수 있습니다. 이 저장소에는 다른 앱의 개인 지침이나 전용 모듈을 포함하지 않습니다. [관리 가이드](docs/SHARED_CORE.md)를 참고하세요.
+
+새 Office의 내부 저장 캘린더 기본값은 `Vesper Office`입니다. 이미 다른 이름으로 운영 중인 설치는 `VESPER_CALENDAR`를 기존 이름으로 명시해 유지하세요. 저장 데이터의 자동 이동은 하지 않습니다.
