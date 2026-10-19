@@ -2,7 +2,7 @@
 import { ASSISTANTS } from './assistant.js';
 import { splitSearchRanges } from './search.js';
 import { t as tr, locale, translate, observeTranslations } from './i18n.js';
-const VERSION = '2.35';
+const VERSION = '2.36';
 
 /* ───────────── 도우미 ───────────── */
 const $ = (s, el = document) => el.querySelector(s);
