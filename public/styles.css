@@ -370,7 +370,6 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, .spaces::-webkit-scrollbar, .s
 .spaces {
   position: fixed; inset: 0; z-index: 18; background: var(--paper); overflow-y: auto; overscroll-behavior: contain;
   padding: calc(var(--safe-t) + 8px) 16px calc(var(--safe-b) + 40px);
-  will-change: transform;
 }
 .spaces > * { max-width: 720px; margin-left: auto; margin-right: auto; }
 .sp-top { display: flex; justify-content: space-between; align-items: center; min-height: 44px; margin: 6px 0 14px; }
@@ -674,3 +673,7 @@ html.rot .sheet { max-height: calc(100vw - var(--safe-t) - 24px); }
 .ev-brief.loading .cb-text { opacity: 0; }
 .ev-brief.pending { font-size: 12.5px; color: var(--ink-3); padding: 2px 2px 0; display: flex; align-items: center; gap: 4px; }
 .brief-notes { min-height: 84px; }
+
+/* Keep translated neighboring pages outside the viewport. */
+html, body { overflow-x: clip; }
+.spaces { overflow-x: hidden; }
