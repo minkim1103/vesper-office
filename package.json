@@ -9,15 +9,16 @@
   },
   "scripts": {
     "start": "node dev.js",
-    "test": "node scripts/test.mjs run google spaces workstream assistant briefing-style search paging fonts",
-    "build": "node scripts/test.mjs run google spaces workstream assistant briefing-style search paging fonts"
+    "test": "node scripts/test.mjs run google spaces workstream assistant briefing-style search paging fonts package",
+    "build": "node scripts/test.mjs run google spaces workstream assistant briefing-style search paging fonts package"
   },
   "files": [
     "src",
     "public/shared",
     "public/search.js",
     "public/fonts/v1",
-    "scripts/test.mjs"
+    "scripts/test.mjs",
+    "public/assistant.js"
   ],
   "exports": {
     "./*": "./src/*.js",
