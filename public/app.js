@@ -1,7 +1,7 @@
 // Vesper — 프론트엔드 (빌드 도구 없이 바로 동작)
 import { ASSISTANTS } from './assistant.js';
 import { t as tr, locale, translate, observeTranslations } from './i18n.js';
-const VERSION = '2.31';
+const VERSION = '2.32';
 
 /* ───────────── 도우미 ───────────── */
 const $ = (s, el = document) => el.querySelector(s);
@@ -774,7 +774,7 @@ async function openEditor(ev, { date } = {}) {
       <div class="chips" id="catChips">${writable.map((c) => `<button type="button" class="chip" data-id="${c.id}" style="--c:${c.color}" aria-pressed="${c.id === f.calendarId}"><i class="dot"></i>${esc(c.name)}</button>`).join('')}</div>
       <div class="group">
         <div class="row"><span class="lbl">${STAR}${tr('Important')}</span><label class="sw"><input type="checkbox" name="deadline" ${f.deadline ? 'checked' : ''} aria-label="Important" data-i18n-aria-label="Important"><span></span></label></div>
-        <div class="row"><span class="lbl">${STAR}${esc(AI.name)} ${tr('Briefing')}</span><label class="sw"><input type="checkbox" name="brief" ${f.brief ? 'checked' : ''} aria-label="AI briefing" data-i18n-aria-label="AI briefing"><span></span></label></div>
+        <div class="row"><span class="lbl">${STAR}${tr('Briefing')}</span><label class="sw"><input type="checkbox" name="brief" ${f.brief ? 'checked' : ''} aria-label="Briefing" data-i18n-aria-label="Briefing"><span></span></label></div>
       </div>
       <textarea class="notes-in brief-notes" name="notes" placeholder="${locale() === 'ko-KR' ? '메모' : 'Notes'}" ${f.brief || f.notes ? '' : 'hidden'}>${esc(f.notes)}</textarea>
       <div class="group">
@@ -1249,7 +1249,7 @@ function openTaskEditor(t, preset = {}) {
     if (!title) { form.title.focus(); return; }
     const body = {
       title, areaId: f.areaId, tag: form.tag.value.trim() || null, notes: form.notes.value,
-      dueDate: form.dueDate.value || null, dueTime: form.dueDate.value && form.dueTime.value ? form.dueTime.value : null,
+      dueDate: form.elements.dueDate.value || null, dueTime: form.elements.dueDate.value ? form.elements.dueTime.value || null : null,
       alarms: f.alarms.filter(Boolean),
       topic: f.topicId || 'none', startDate: form.start.value || null,
     };
@@ -1259,8 +1259,8 @@ function openTaskEditor(t, preset = {}) {
       if (isNew) await api('/api/tasks', { method: 'POST', body });
       else await api(`/api/tasks/${t.id}`, { method: 'PATCH', body });
       toast(isNew ? tr('Added') : tr('Saved'));
-      if (preset.topicId) { await loadTasks(); openTopic(state.topics.find((x) => x.id === preset.topicId)); }
-      else { closeSheet(); loadTasks(); }
+      closeSheet();
+      loadTasks();
     } catch (err) { btn.disabled = false; toast(err.message, true); }
   });
 }
@@ -1493,7 +1493,7 @@ async function openTopic(tp) {
     <section class="tp-card">
       <h3 data-i18n="Tasks">Tasks</h3>
       ${openList.map(trow).join('')}${doneList.map(trow).join('')}
-      <button class="add-inline" id="tpAddTask">${ICON.plus}Add task</button>
+      <button class="add-inline" id="tpAddTask">${ICON.plus}${tr('Add item')}</button>
     </section>
 
     <section class="tp-card" id="tpLinked" hidden><h3 data-i18n="From calendar">From calendar</h3><div id="tpLinkedList"></div></section>`);
@@ -1513,7 +1513,10 @@ async function openTopic(tp) {
     const k = `task-${t.uid}`;
     if (state.notes[k] !== undefined) starRow(t, state.notes[k]); else loadNote(k).then((n) => starRow(t, n));
   }
-  $('#tpAddTask').addEventListener('click', () => openTaskEditor(null, { topicId: tp.id }));
+  $('#tpAddTask').addEventListener('click', () => {
+    stackSheet(() => openTopic(state.topics.find((x) => x.id === tp.id) || tp));
+    openTaskEditor(null, { topicId: tp.id });
+  });
 
   // AI 노트, 캘린더 연결 일정 (비동기)
   $('#tpNote').onclick = () => { stackSheet(() => openTopic(state.topics.find((x) => x.id === tp.id) || tp)); openNote(tp.id); };
@@ -1552,22 +1555,24 @@ function openTopicEditor(tp) {
     </form>`);
   const form = $('#tpForm');
   $('[data-close]').addEventListener('click', closeSheet);
-  if (isNew) setTimeout(() => form.name.focus(), 300);
-  form.name.addEventListener('input', () => { if (isNew && !form.tag.dataset.touched) form.tag.value = form.name.value.trim().split(/\s+/)[0] || ''; });
-  form.tag.addEventListener('input', () => { form.tag.dataset.touched = '1'; });
+  if (isNew) setTimeout(() => form.elements.name.focus(), 300);
+  form.elements.name.addEventListener('input', () => { if (isNew && !form.elements.tag.dataset.touched) form.elements.tag.value = form.elements.name.value.trim().split(/\s+/)[0] || ''; });
+  form.elements.tag.addEventListener('input', () => { form.elements.tag.dataset.touched = '1'; });
   $$('.swatch', form).forEach((s) => s.addEventListener('click', () => { f.color = s.dataset.c; $$('.swatch', form).forEach((x) => x.setAttribute('aria-pressed', x === s)); }));
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!form.name.value.trim()) { form.name.focus(); return; }
+    if (!form.elements.name.value.trim()) { form.elements.name.focus(); return; }
     const body = {
-      op: isNew ? 'create' : 'update', topic: tp?.id, name: form.name.value.trim(), tag: form.tag.value.trim(), status: form.status.value,
-      start: form.start.value || null, target: form.target.value || null, color: f.color, brief: form.brief.value.trim(), keywords: form.keywords.value,
+      op: isNew ? 'create' : 'update', topic: tp?.id, name: form.elements.name.value.trim(), tag: form.elements.tag.value.trim(), status: form.elements.status.value,
+      start: form.elements.start.value || null, target: form.elements.target.value || null, color: f.color, brief: form.elements.brief.value.trim(), keywords: form.elements.keywords.value,
     };
+    const submit = form.querySelector('[type=submit]');
+    submit.disabled = true;
     try {
       const saved = await api('/api/topics', { method: 'POST', body });
       await loadTasks(); toast(isNew ? tr('Created') : tr('Saved'));
       openTopic(state.topics.find((t) => t.id === saved.id) || saved);
-    } catch (err) { toast(err.message, true); }
+    } catch (err) { submit.disabled = false; toast(err.message, true); }
   });
   $('#tpDel')?.addEventListener('click', async () => {
     if (!confirm(`Delete “${tp.name}”? Its tasks stay in Tasks.`)) return;

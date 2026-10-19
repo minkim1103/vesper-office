@@ -516,7 +516,7 @@ async function applyInput(t, raw, { skipCategoryCheck } = {}) {
       t.topic = tp.id; t.prefixTag = null;
     }
   }
-  const startDate = raw.startDate ?? raw.start;
+  const startDate = raw.startDate !== undefined ? raw.startDate : raw.start;
   if (startDate !== undefined) {
     if (startDate && !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) throw fail('시작 날짜는 YYYY-MM-DD 형식이어야 합니다.');
     t.start = startDate || null;
@@ -535,7 +535,8 @@ async function applyInput(t, raw, { skipCategoryCheck } = {}) {
     if (!skipCategoryCheck && a && t.tag && !(a.subs || []).includes(t.tag)) await editCategories('add_sub', { area: a.name, name: t.tag });
   }
   if (raw.notes !== undefined) t.notes = raw.notes ? String(raw.notes) : '';
-  const dueDate = raw.dueDate ?? raw.due_date, dueTime = raw.dueTime ?? raw.due_time;
+  const dueDate = raw.dueDate !== undefined ? raw.dueDate : raw.due_date;
+  const dueTime = raw.dueTime !== undefined ? raw.dueTime : raw.due_time;
   if (dueDate !== undefined) {
     if (!dueDate) t.due = null;
     else {

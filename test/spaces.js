@@ -82,3 +82,15 @@ assert.ok(!(await call('list_tasks')).some((t) => t.id === idea.id));
 await call('update_task', { id: exp.id, dueDate: addDays(t0, 12), alarms: [] });
 assert.ok(!(await store.queryObjects(vcal.url)).find((o) => o.data.includes('PFM')).data.includes('VALARM'));
 ok('삭제, 알람 비우기');
+
+// The web form sends null for optional fields; clearing dates must survive readback.
+const noDeadline = await tasks.addTask({ title: '마감 없는 할 일', dueDate: null, dueTime: null, startDate: null, alarms: [] });
+assert.equal(noDeadline.due, null);
+let dated = await tasks.addTask({ title: '마감 지우기', dueDate: addDays(t0, 9), dueTime: '14:00', startDate: t0, alarms: [] });
+await tasks.updateTask(dated.id, { dueTime: null });
+assert.equal((await tasks.listTasks()).find(t => t.id === dated.id).due.time, null);
+await tasks.updateTask(dated.id, { dueDate: null, dueTime: null, startDate: null });
+const cleared = (await tasks.listTasks()).find(t => t.id === dated.id);
+assert.equal(cleared.due, null);
+assert.equal(cleared.start, null);
+ok('웹 폼의 마감 없는 저장, 마감 시각·날짜·시작일 지우기 후 재조회');
