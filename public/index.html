@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title data-i18n="Vesper">Vesper</title>
+  <meta name="theme-color" content="#FAF9F5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#262624" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Vesper">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="icon" href="/icons/icon-192.png">
+  <link rel="manifest" href="/api/manifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <section id="login" class="login" hidden>
+    <form id="loginForm" class="login-card">
+      <img src="/icons/icon-192.png" alt="" class="login-mark" width="64" height="64">
+      <h1 data-i18n="Vesper">Vesper</h1>
+      <input id="pw" type="password" autocomplete="current-password" placeholder="Password" data-i18n-placeholder="Password" required>
+      <button class="btn primary" type="submit" data-i18n="Sign in">Sign in</button>
+      <p id="loginErr" class="err" role="alert"></p>
+    </form>
+  </section>
+
+  <div id="app" class="app" hidden>
+    <div class="chrome" id="chrome">
+      <header class="top">
+        <button id="monthTitle" class="month-title" aria-label="Go to today" data-i18n-aria-label="Go to today">
+          <span id="mName" class="m-name"></span><span id="yNum" class="y-num"></span>
+        </button>
+        <div class="top-actions">
+          <button id="todayBtn" class="chip-btn today-btn" data-i18n="Today">Today</button>
+          <button id="bellBtn" class="icon-btn bell-btn" aria-label="Briefing" data-i18n-aria-label="Briefing">
+            <svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg><i class="new-dot" hidden></i>
+          </button>
+          <button id="refreshBtn" class="icon-btn" aria-label="Sync" data-i18n-aria-label="Sync">
+            <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/></svg>
+          </button>
+          <button id="catBtn" class="icon-btn" aria-label="Calendars" data-i18n-aria-label="Calendars">
+            <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+          </button>
+        </div>
+      </header>
+      <div class="toolbar">
+        <nav class="views" role="tablist">
+          <button role="tab" data-view="month" aria-selected="true" data-i18n="Month">Month</button>
+          <button role="tab" data-view="list" aria-selected="false" data-i18n="List">List</button>
+        </nav>
+        <span id="demoBadge" class="demo-badge" hidden data-i18n="Demo">Demo</span>
+      </div>
+      <div class="dow" id="dow" aria-hidden="true"></div>
+    </div>
+
+    <main id="monthView" class="month-view">
+      <div id="months" class="months"></div>
+    </main>
+
+    <main id="listView" class="list-view" hidden>
+      <section id="deadlines" class="deadlines" aria-label="Important" data-i18n-aria-label="Important"></section>
+      <label class="search">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+        <input id="search" type="search" placeholder="Search" data-i18n-placeholder="Search">
+      </label>
+      <div id="agenda"></div>
+      <button id="moreBtn" class="btn ghost more" data-i18n="Load more">Load more</button>
+    </main>
+
+  </div>
+
+  <!-- 날짜 탭하면 아래에서 올라오는 하루 일정 패널 -->
+  <section id="dayPanel" class="day-panel" hidden aria-label="Day" data-i18n-aria-label="Day">
+    <div class="day-head">
+      <h2 id="dayTitle" class="day-title"></h2>
+    </div>
+    <ul id="dayList" class="ev-list"></ul>
+  </section>
+
+  <!-- Workstream: 프로젝트별 관리 (캘린더 바로 오른쪽 페이지) -->
+  <section id="workstream" class="spaces ws" hidden aria-label="Workstream" data-i18n-aria-label="Workstream">
+    <div class="pager" aria-hidden="true"><i></i><i class="on"></i><i></i></div>
+    <header class="sp-top">
+      <h1 class="sp-title" data-i18n="Workstream">Workstream</h1>
+      <button id="wsAdd" class="icon-btn" aria-label="New project" data-i18n-aria-label="New project"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    </header>
+    <button id="wsBrief" class="claude-card" hidden></button>
+    <nav id="wsFilter" class="ws-filter"></nav>
+    <section class="ws-week">
+      <div class="wk-head">
+        <h2 id="wsRange"></h2>
+        <div class="wk-nav">
+          <button id="wsThisWeek" class="chip-btn" hidden data-i18n="This week">This week</button>
+          <button id="wsPrev" class="icon-btn sm" aria-label="Previous week" data-i18n-aria-label="Previous week"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+          <button id="wsNext" class="icon-btn sm" aria-label="Next week" data-i18n-aria-label="Next week"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+        </div>
+      </div>
+      <div class="ws-days" id="wsDays"></div>
+      <div class="ws-board" id="wsBoard"></div>
+    </section>
+    <button id="wsUnsorted" class="unsorted-row" hidden></button>
+    <h3 class="ws-sec" data-i18n="Topics">Topics</h3>
+    <div id="wsTopics" class="ws-topics"></div>
+  </section>
+
+  <section id="spaces" class="spaces" hidden aria-label="Tasks" data-i18n-aria-label="Tasks">
+    <div class="pager" aria-hidden="true"><i></i><i></i><i class="on"></i></div>
+    <header class="sp-top">
+      <h1 class="sp-title" data-i18n="Tasks">Tasks</h1>
+      <button id="spAdd" class="icon-btn" aria-label="Add" data-i18n-aria-label="Add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+    </header>
+    <div id="spNotice" class="sp-notice" hidden></div>
+    <nav id="spTabs" class="sp-tabs"></nav>
+    <nav id="spSubs" class="sp-subs" hidden></nav>
+    <div id="spList" class="sp-list"></div>
+  </section>
+
+  <div id="scrim" class="scrim" hidden></div>
+  <section id="sheet" class="sheet" role="dialog" aria-modal="true" hidden>
+    <div class="grabber" aria-hidden="true"></div>
+    <div id="sheetBody"></div>
+  </section>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>

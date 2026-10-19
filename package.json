@@ -1,0 +1,12 @@
+{
+  "name": "vesper",
+  "version": "2.3.0",
+  "private": true,
+  "description": "iCloud 개인 비서 · Claude/ChatGPT MCP · GPT Actions · 예약 요청 도우미",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node dev.js",
+    "test": "node test/run.js && node test/google.js && node test/spaces.js && node test/workstream.js && node test/assistant.js"
+  }
+}

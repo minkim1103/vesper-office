@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 240 240" role="img" aria-label="Vesper, a star in your calendar">
+  <rect width="240" height="240" rx="54" fill="#146B61"/>
+  <g fill="#BFE9D5">
+    <circle cx="64" cy="74" r="8"/><circle cx="101" cy="74" r="8"/>
+    <circle cx="138" cy="74" r="8"/><circle cx="175" cy="74" r="8"/>
+    <circle cx="64" cy="112" r="8"/><circle cx="101" cy="112" r="8"/>
+    <circle cx="64" cy="150" r="8"/><circle cx="101" cy="150" r="8"/>
+  </g>
+  <g fill="none" stroke="#BFE9D5" stroke-width="3.5">
+    <circle cx="64" cy="187" r="6"/><circle cx="101" cy="187" r="6"/>
+    <circle cx="138" cy="187" r="6"/><circle cx="175" cy="187" r="6"/>
+  </g>
+  <path d="M151 94 Q155 120 181 124 Q155 128 151 154 Q147 128 121 124 Q147 120 151 94Z" fill="#FAF9F5"/>
+  <path d="M128 104C151 86 181 98 185 123C189 148 166 166 143 157" fill="none" stroke="#D7E9AA" stroke-width="3.5" stroke-linecap="round"/>
+</svg>

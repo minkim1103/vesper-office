@@ -1,0 +1,54 @@
+{
+  "testedAt": "2026-10-19T08:54:54.445Z",
+  "mode": "Local demo + mobile Chrome viewport. No real ChatGPT scheduled task, iPhone, Vercel or calendar credentials.",
+  "results": [
+    {
+      "name": "Real ChatGPT scheduling",
+      "status": "UNVERIFIED",
+      "detail": "Endpoint returns request_only; no task ID or next-run readback. No deployed URL or connected ChatGPT task."
+    },
+    {
+      "name": "Workstream scheduling prompt",
+      "status": "FAIL",
+      "detail": "Weekly prompt mentions project progress but only instructs save_daily_briefing."
+    },
+    {
+      "name": "Actions Workstream write endpoint",
+      "status": "FAIL",
+      "detail": "Actions exposes only current context and daily briefing; Workstream writes require MCP save_briefing."
+    },
+    {
+      "name": "Calendar create/update + project context",
+      "status": "PASS",
+      "detail": "MCP HTTP requests, demo storage."
+    },
+    {
+      "name": "Simulated delayed daily write + readback",
+      "status": "PASS",
+      "detail": "Local timer lateness 1 ms. This is not ChatGPT timing evidence."
+    },
+    {
+      "name": "Daily automatic update while open",
+      "status": "FAIL",
+      "detail": "Server has second version; open mobile viewport still shows first version after 65 seconds of real time."
+    },
+    {
+      "name": "Daily after manual refresh",
+      "status": "PASS"
+    },
+    {
+      "name": "Workstream MCP write and mobile rendering",
+      "status": "PASS"
+    },
+    {
+      "name": "Mobile schedule form and ChatGPT handoff URL",
+      "status": "PASS",
+      "detail": "Generated request only; link not submitted to ChatGPT."
+    },
+    {
+      "name": "Browser JavaScript errors",
+      "status": "PASS",
+      "detail": ""
+    }
+  ]
+}
