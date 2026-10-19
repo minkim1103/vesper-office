@@ -35,5 +35,6 @@
     }
   ],
   "outputDirectory": "public",
-  "buildCommand": "node scripts/test.mjs run google spaces workstream assistant briefing-style search paging fonts package"
+  "buildCommand": "node scripts/test.mjs run google spaces workstream assistant briefing-style search paging fonts package release",
+  "ignoreCommand": "node scripts/allow-deploy.mjs"
 }

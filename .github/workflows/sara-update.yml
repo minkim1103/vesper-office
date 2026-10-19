@@ -1,0 +1,52 @@
+name: Sara automatic updates
+on:
+  schedule:
+    - cron: '23 */6 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: sara-install-update
+  cancel-in-progress: false
+jobs:
+  update:
+    if: github.repository != 'minkim1103/vesper-office' && vars.SARA_AUTO_UPDATE == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/cache/restore@v4
+        id: deployed
+        with:
+          path: ${{ runner.temp }}/sara-deployment
+          key: sara-deployed-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: sara-deployed-
+      - name: Read previous deployment receipt
+        run: |
+          if [ -f "$RUNNER_TEMP/sara-deployment/commit" ]; then
+            echo "SARA_DEPLOYED_COMMIT=$(cat "$RUNNER_TEMP/sara-deployment/commit")" >> "$GITHUB_ENV"
+          fi
+      - name: Install the latest official Sara release
+        id: update
+        env:
+          SARA_DEPLOY_HOOK: ${{ secrets.SARA_DEPLOY_HOOK }}
+          SARA_INSTALL_BRANCH: ${{ github.event.repository.default_branch }}
+        run: node scripts/update-sara.mjs
+      - name: Record accepted deployment request
+        if: steps.update.outputs.deployed_commit != ''
+        env:
+          RELEASE_COMMIT: ${{ steps.update.outputs.deployed_commit }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/sara-deployment"
+          printf '%s' "$RELEASE_COMMIT" > "$RUNNER_TEMP/sara-deployment/commit"
+      - uses: actions/cache/save@v4
+        if: steps.update.outputs.deployed_commit != ''
+        with:
+          path: ${{ runner.temp }}/sara-deployment
+          key: sara-deployed-${{ github.run_id }}-${{ github.run_attempt }}

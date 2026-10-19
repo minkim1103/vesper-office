@@ -1,0 +1,41 @@
+name: Publish Sara stable release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version already committed in package.json (for example 3.0.1)'
+        required: true
+permissions:
+  contents: write
+concurrency:
+  group: sara-official-release
+  cancel-in-progress: false
+jobs:
+  release:
+    if: github.repository == 'minkim1103/vesper-office' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate the public release
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: node scripts/check-release.mjs "$RELEASE_VERSION"
+      - run: npm test
+      - name: Publish and advance the stable production branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          tag="sara-v$RELEASE_VERSION"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            echo "This version already exists; use a new version."
+            exit 1
+          fi
+          gh release create "$tag" --target "$GITHUB_SHA" --title "Sara $RELEASE_VERSION" --generate-notes --latest
+          git push origin HEAD:refs/heads/sara-stable

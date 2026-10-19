@@ -15,7 +15,7 @@ globalThis.localStorage = { getItem: () => '"en"' };
 assert.equal(locale(), 'en-US');
 assert.equal(t('Settings'), 'Settings');
 delete globalThis.localStorage;
-const identities = new Set(['Vesper', 'Google', 'iCloud', 'MoS2', 'Google Calendar']);
+const identities = new Set(['Sara', 'Vesper', 'Google', 'iCloud', 'MoS2', 'Google Calendar']);
 for (const file of ['../public/index.html', '../public/app.js']) {
   const source = fs.readFileSync(new URL(file, import.meta.url), 'utf8');
   for (const [, key] of source.matchAll(/data-i18n(?:-placeholder|-aria-label)?="([^"]+)"/g)) assert.ok(messages[key] || identities.has(key), `Missing translation: ${key}`);
@@ -37,6 +37,8 @@ try {
   assert.equal(brand.id, config.assistant);
   const manifest = await (await get('/api/manifest?assistant=chatgpt')).json();
   assert.equal(manifest.id, '/');
+  assert.equal(manifest.name, 'Sara');
+  assert.equal(manifest.short_name, 'Sara');
   assert.ok(manifest.icons.every(icon => icon.src.startsWith('/icons/chatgpt-')));
   const schema = await (await get('/api/actions/openapi.json')).json();
   assert.equal(schema.components.securitySchemes.bearerAuth.scheme, 'bearer');

@@ -10,7 +10,7 @@ export function manifest(assistant) {
   const ai = branding(assistant);
   const prefix = ai.id === 'chatgpt' ? 'chatgpt-' : '';
   return {
-    id: '/', name: 'Vesper', short_name: 'Vesper', lang: 'ko', start_url: '/', scope: '/',
+    id: '/', name: config.appName, short_name: config.appName, lang: 'ko', start_url: '/', scope: '/',
     display: 'standalone', background_color: ai.id === 'chatgpt' ? '#F4F8F5' : '#FAF9F5',
     theme_color: ai.id === 'chatgpt' ? '#146B61' : '#D97757',
     icons: [192, 512].map(size => ({ src: `/icons/${prefix}icon-${size}.png`, sizes: `${size}x${size}`, type: 'image/png', purpose: 'any maskable' })),

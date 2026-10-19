@@ -488,7 +488,7 @@ async function handleOne(msg, ctx) {
         result = {
           protocolVersion: SUPPORTED.includes(params.protocolVersion) ? params.protocolVersion : SUPPORTED[0],
           capabilities: { tools: { listChanged: false } },
-          serverInfo: { name: 'my-calendar', title: '내 캘린더', version: '1.0.0' },
+          serverInfo: { name: 'my-calendar', title: config.appName, version: '1.0.0' },
           instructions: INSTRUCTIONS,
         };
         break;

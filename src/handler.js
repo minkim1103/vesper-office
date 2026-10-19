@@ -123,11 +123,11 @@ export default async function handler(req, res) {
       if (path === '/api/google/connect') {
         res.statusCode = 302; res.setHeader('Location', google.authUrl(redirectUri)); return res.end();
       }
-      if (q.error) return page(res, 400, 'Google Calendar', `<h1>Not connected</h1><p>${escHtml(q.error)}</p><a class="btn" href="/">Back to Vesper</a>`);
-      if (!google.checkState(q.state)) return page(res, 400, 'Google Calendar', '<h1>Link expired</h1><p>Start again from Calendars → Connect.</p><a class="btn" href="/">Back to Vesper</a>');
+      if (q.error) return page(res, 400, 'Google Calendar', `<h1>Not connected</h1><p>${escHtml(q.error)}</p><a class="btn" href="/">Back to ${escHtml(config.appName)}</a>`);
+      if (!google.checkState(q.state)) return page(res, 400, 'Google Calendar', `<h1>Link expired</h1><p>Start again from Calendars → Connect.</p><a class="btn" href="/">Back to ${escHtml(config.appName)}</a>`);
       const tok = await google.exchangeCode(q.code, redirectUri);
       if (!tok.refresh_token) {
-        return page(res, 400, 'Google Calendar', '<h1>No token returned</h1><p>Remove Vesper at myaccount.google.com/permissions, then connect again.</p><a class="btn" href="/">Back to Vesper</a>');
+        return page(res, 400, 'Google Calendar', `<h1>No token returned</h1><p>Remove ${escHtml(config.appName)} at myaccount.google.com/permissions, then connect again.</p><a class="btn" href="/">Back to ${escHtml(config.appName)}</a>`);
       }
       return page(res, 200, 'Google Calendar', `<h1>Almost done</h1>
 <p>Copy this token:</p>
@@ -138,7 +138,7 @@ export default async function handler(req, res) {
 <li>Add <code>GOOGLE_REFRESH_TOKEN</code> with this value</li>
 <li><b>Deployments</b> → latest → <b>⋯ → Redeploy</b></li>
 </ol>
-<a class="btn" href="/">Back to Vesper</a>`);
+<a class="btn" href="/">Back to ${escHtml(config.appName)}</a>`);
     }
 
     const extension = { req, res, path, method, q, send, readBody, origin };

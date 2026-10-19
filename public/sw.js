@@ -1,6 +1,6 @@
 importScripts('/shared/font-cache.js');
 // 앱 화면(껍데기)만 캐시해서 빠르게 열리게 합니다. 일정 데이터(/api)는 항상 서버에서 새로 받습니다.
-const CACHE = 'vesper-shell-3.0.0';
+const CACHE = 'vesper-shell-3.0.1';
 const FONTS = self.vesperFontCache;
 const SHELL = ['/shared/pager.js', '/shared/sheets.js', '/shared/font-cache.js', '/', '/index.html', '/styles.css', '/fonts/v1/fonts.css', '/app.js', '/assistant.js', '/search.js', '/i18n.js', '/manifest.webmanifest', '/icons/logo.svg', '/icons/chatgpt-logo.svg', '/icons/icon-192.png', '/icons/chatgpt-icon-192.png'];
 

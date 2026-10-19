@@ -1,4 +1,4 @@
-# 나만의 Vesper 설치하기
+# 나만의 Sara 설치하기
 
 한 사람당 자신의 Vercel 프로젝트, iCloud 계정, APP_PASSWORD, MCP_TOKEN을 사용합니다. 다른 사람의 배포 주소에 계정을 등록하는 방식이 아닙니다. 설치는 대략 20~40분으로 예상하며 계정 생성과 AI 연결 상태에 따라 더 걸릴 수 있습니다.
 
@@ -6,7 +6,7 @@
 
 1. Apple 계정의 이중 인증을 켜고 iCloud 캘린더 동기화를 활성화합니다.
 2. https://account.apple.com 에 로그인합니다.
-3. **로그인 및 보안 → 앱 암호 → 앱 암호 생성**을 선택합니다. 이름은 Vesper로 정합니다.
+3. **로그인 및 보안 → 앱 암호 → 앱 암호 생성**을 선택합니다. 이름은 Sara로 정합니다.
 4. 생성된 앱 암호는 Vercel의 ICLOUD_APP_PASSWORD에 직접 입력합니다. 일반 Apple 계정 비밀번호가 아닙니다.
 
 앱 암호 메뉴가 보이지 않으면 이중 인증과 계정 지원 여부를 확인하세요. 일반 Apple 비밀번호를 변경하면 기존 앱 암호도 취소되므로 새로 만들어 재배포해야 합니다.
@@ -15,7 +15,7 @@
 
 ## 2. MCP 토큰과 웹 로그인 암호 만들기
 
-MCP_TOKEN은 OpenAI나 Anthropic에서 발급받는 키가 아닙니다. 자신의 Vesper 서버 접속용으로 직접 만드는 무작위 비밀 문자열입니다.
+MCP_TOKEN은 OpenAI나 Anthropic에서 발급받는 키가 아닙니다. 자신의 Sara 서버 접속용으로 직접 만드는 무작위 비밀 문자열입니다.
 
 - 비밀번호 관리자로 64자 무작위 영문·숫자 문자열을 생성하거나, Mac 터미널에서 아래 명령을 실행합니다.
 
@@ -27,7 +27,7 @@ openssl rand -hex 32
 
 ## 3. 자기 계정으로 배포
 
-GitHub와 Vercel 계정을 준비한 뒤 README의 Deploy with Vercel 버튼을 누릅니다. 본인 GitHub에 소스 복사본을 만들고 본인 Vercel 프로젝트로 배포합니다. 자신의 계정과 맞는 무료 Hobby 범위에서 개인용으로 사용합니다.
+GitHub와 Vercel 계정을 준비한 뒤 README의 Deploy with Vercel 버튼을 누릅니다. 공개 Sara의 정식 브랜치(`sara-stable`)를 본인 GitHub에 복사하고 본인 Vercel 프로젝트로 배포합니다. 프로젝트 이름은 Sara입니다. 자신의 계정과 맞는 무료 Hobby 범위에서 개인용으로 사용합니다.
 
 배포 화면에서 다음 값을 입력합니다.
 
@@ -44,7 +44,7 @@ Framework는 Other, 출력 폴더는 public입니다. 출력 폴더는 vercel.js
 
 데모 표시가 사라지고 일정이 조회되는지 확인합니다. 테스트 프로젝트를 하나 만들고 새로고침해도 남는지 확인하세요. iCloud 연결 시 Vesper Office 캘린더가 생성되고 프로젝트·할 일·노트가 저장됩니다. 데모의 메모리 데이터는 자동 이전되지 않습니다.
 
-수동 설치를 원하면 저장소 Fork → Vercel Add New / Project → 자신의 복사본 Import → 같은 환경변수 입력 → Deploy 순서입니다. 소스 복사본은 원본 GitHub 수정이 자동 반영되지 않으므로 업데이트가 필요하면 동기화 후 재배포합니다.
+권장 설치 방법은 README의 Deploy 버튼입니다. 수동 Fork를 사용한다면 처음에는 `sara-stable`의 정식 버전으로 맞추고, 본인 Vercel의 Add New / Project에서 복사본을 Import한 뒤 같은 환경변수를 입력해 Deploy합니다. 일반 복사본은 자동으로 갱신되지 않습니다. 설치 후 [정식 버전 자동 업데이트](AUTO_UPDATE.md)를 설정하면 이후 정식 릴리스만 자동으로 가져와 재배포합니다.
 
 ## 4. Claude 또는 ChatGPT 한쪽에 연결
 
@@ -84,11 +84,11 @@ AI는 get_briefing_style로 기존 개인 지시를 읽고 요청한 부분을 �
 
 ## 6. 외부 예약 만들기
 
-AI 서비스에서 다음 내용으로 예약을 만듭니다. Vesper 앱 안에서는 예약을 생성하지 않습니다.
+AI 서비스에서 다음 내용으로 예약을 만듭니다. Sara 앱 안에서는 예약을 생성하지 않습니다.
 
 ```text
 매일 오전 7시 50분, Asia/Seoul 기준으로 브리핑해줘.
-매 실행 때 Vesper get_briefing을 호출하고 briefingStyle의 기본 가이드·개인 지시·피드백과 horizon의 최신 일정과 planningTasks의 2주 내 마감 자료를 읽어줘.
+매 실행 때 Sara get_briefing을 호출하고 briefingStyle의 기본 가이드·개인 지시·피드백과 horizon의 최신 일정과 planningTasks의 2주 내 마감 자료를 읽어줘.
 현재 요청과 개인 지시를 기본 가이드보다 우선하고, 이전 daily 노트를 읽어 같은 제안을 반복하지 마.
 일정·할 일은 수정하지 말고, 사실과 제안을 구분해 작성해줘.
 일정 브리핑 전문을 save_daily_briefing으로 저장해줘.
@@ -100,3 +100,15 @@ AI 서비스에서 다음 내용으로 예약을 만듭니다. Vesper 앱 안에
 예약 작업이 해당 연결의 읽기·쓰기를 실제로 사용할 수 있어야 합니다. 일반 대화에서 한 번 수동 실행한 뒤 예약을 테스트하고, 웹사이트의 종 버튼과 Workstream에 저장됐는지 확인합니다. 연결 제약이나 권한 확인 때문에 예약이 멈추는 환경에서는 프롬프트만으로 해결되지 않습니다.
 
 최종 브리핑은 마크다운으로 저장하고 웹페이지가 표시합니다. 앱은 AI API를 직접 호출하지 않습니다. 화면이 보일 때 약 30초마다 새 노트를 확인하며, 휴대폰에서 앱으로 돌아올 때도 다시 읽습니다. 실제 정시 실행·알림 전달은 외부 예약 환경에서 검증해야 합니다.
+
+## 7. 선택: Google Calendar 연결
+
+현재 Sara의 프로젝트·할 일·노트 저장은 iCloud를 사용합니다. Google Calendar 연결은 일정 동기화를 추가하는 선택 기능입니다.
+
+1. 본인 Google Cloud 프로젝트에서 Google Calendar API와 OAuth 동의 화면을 설정합니다.
+2. 웹 애플리케이션 OAuth 클라이언트를 만들고 리디렉션 URI를 `https://본인주소/api/google/callback`으로 등록합니다.
+3. Vercel에 `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`을 저장하고 재배포합니다.
+4. Sara의 캘린더 메뉴에서 Google 연결을 실행합니다. 계정과 요청 권한을 확인합니다.
+5. 연결 완료 화면의 토큰을 Vercel의 `GOOGLE_REFRESH_TOKEN`에 저장한 뒤 재배포합니다.
+
+Google의 앱 검증·게시 상태에 따라 계정 제한이나 토큰 유효기간이 달라질 수 있습니다. 토큰은 코드나 채팅에 붙여넣지 않습니다.

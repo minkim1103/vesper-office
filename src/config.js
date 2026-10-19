@@ -7,6 +7,7 @@ const env = process.env;
 
 export const config = {
   profile,
+  appName: profile.id === 'office' ? 'Sara' : 'Vesper',
   // iCloud 계정 (둘 다 비어 있으면 '데모 모드'로 동작)
   icloudUser: env.ICLOUD_USERNAME || '',          // Apple ID 이메일
   icloudPassword: env.ICLOUD_APP_PASSWORD || '',  // appleid.apple.com 에서 만든 "앱 암호"

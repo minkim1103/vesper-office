@@ -1,10 +1,10 @@
 import { createPager } from './shared/pager.js';
 import { createSheets } from './shared/sheets.js';
-// Vesper — 프론트엔드 (빌드 도구 없이 바로 동작)
+// Sara — 프론트엔드 (빌드 도구 없이 바로 동작)
 import { ASSISTANTS } from './assistant.js';
 import { splitSearchRanges } from './search.js';
 import { t as tr, locale, translate, observeTranslations } from './i18n.js';
-const VERSION = '3.0.0';
+const VERSION = '3.0.1';
 
 /* ───────────── 도우미 ───────────── */
 const $ = (s, el = document) => el.querySelector(s);
@@ -867,7 +867,7 @@ function openCategories() {
         <div class="swatches">${PALETTE.map((p) => `<button type="button" class="swatch" data-c="${p}" style="--c:${p}" aria-label="Color ${p}" aria-pressed="${p === color}"></button>`).join('')}</div>
         <div class="new-cat"><input name="name" placeholder="Name" data-i18n-placeholder="Name" autocomplete="off"><button class="btn primary" type="submit" data-i18n="Add">Add</button></div>
       </form>
-      <p class="app-version">Vesper v${VERSION}</p>`);
+      <p class="app-version">Sara v${VERSION}</p>`);
     $('[data-close]').addEventListener('click', () => { closeSheet(); repaintMonths(); if (state.view === 'list') renderAgenda(); });
     $('#aiSettings').addEventListener('click', openAssistantSettings);
     $$('.cat-item input').forEach((i) => i.addEventListener('change', () => {
